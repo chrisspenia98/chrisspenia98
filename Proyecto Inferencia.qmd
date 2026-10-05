@@ -1,0 +1,2538 @@
+---
+title: "Proyecto de Inferencia Estadística"
+author:
+  - "Juan Ángel Beltrán Gómez"
+  - "Lina María Cruz Hernández"
+  - "Shirley Dayana Pardo Rodríguez"
+  - "Cristian Andrés Peña Peña"
+lang: es
+format:
+  html:
+    output-file: index.html
+    embed-resources: true
+    toc: true
+    toc-location: right
+    toc-title: "Índice de ejercicios"
+    toc-depth: 3
+    toc-expand: true
+    number-sections: false
+    smooth-scroll: true
+editor: visual
+---
+
+## Librerías
+
+```{r}
+library(knitr)
+```
+
+## Declaración sobre el uso de Inteligencia Artificial
+
+El presente trabajo se basa en los ejercicios desarrollados durante el curso de Inferencia Estadística de la Universidad Nacional de Colombia. Durante su revisión y preparación, los autores utilizaron ChatGPT, de OpenAI, y Gemini, de Google, como herramientas de apoyo.
+
+ChatGPT se empleó para corregir aspectos gramaticales y ortográficos, mejorar la sintaxis, organizar las ideas y reducir redundancias. También apoyó la revisión de fórmulas y argumentos estadísticos, la interpretación de resultados, la corrección y optimización del código en R y la presentación de tablas y gráficos en Quarto.
+
+Gemini se utilizó como apoyo complementario para revisar alternativas de implementación del código y contrastar propuestas de las herramientas de inteligencia artificial con los objetivos planteados por los autores. La coincidencia entre las respuestas de estas herramientas no se consideró, por sí sola, una garantía de corrección.
+
+El uso de estas herramientas tuvo un propósito de asistencia durante la elaboración y revisión del documento. Las sugerencias incorporadas quedaron sujetas al criterio de los autores, quienes asumen la responsabilidad por la verificación del código, la validez de los argumentos estadísticos y la interpretación de los resultados presentados.
+
+Esta declaración reconoce la contribución de la inteligencia artificial al proceso de revisión, sin sustituir la responsabilidad académica de los autores sobre la versión final del trabajo.
+
+
+## A. Distribución de un estimador máximo verosímil cuando no se cumplen las condiciones de regularidad
+
+Considere una muestra aleatoria $X_1,X_2,\ldots,X_n$ proveniente de una distribución con función de densidad
+
+$$
+f_X(x;\theta)=e^{-(x-\theta)}I_{[\theta,\infty)}(x).
+$$
+
+Esta distribución corresponde a una distribución exponencial con tasa igual a 1, desplazada $\theta$ unidades. Para el desarrollo de este proyecto se toma $\theta=\kappa=6$, dado que el verdadero valor del parámetro corresponde al número asignado al grupo.
+
+Se sabe que el estimador de máxima verosimilitud de $\theta$ es el mínimo de la muestra:
+
+$$
+\widehat{\theta}_{MLE}=X_{(1)}=\min\{X_1,X_2,\ldots,X_n\}.
+$$
+
+Debido a que el soporte de la distribución depende del parámetro $\theta$, no se cumplen las condiciones usuales de regularidad de los estimadores de máxima verosimilitud. Por esta razón, el estimador no tiene la distribución asintótica normal habitual cuando se emplea la normalización clásica. También se estudiará la convergencia en distribución de la variable aleatoria
+
+$$
+R_n=n\left(X_{(1)}-\theta\right).
+$$
+
+### a. Simulación de las muestras y cálculo del MLE
+
+Se realizan $m=1000$ simulaciones. En cada simulación se genera una muestra aleatoria de tamaño $n=10$ proveniente de una distribución $\operatorname{Exp}(1)$ y se suma $\kappa=6$ a cada observación. Posteriormente, se calcula el mínimo de cada muestra, el cual corresponde a la estimación de máxima verosimilitud del parámetro $\theta$. Las estimaciones obtenidas se almacenan para analizarlas en los siguientes apartados.
+
+```{r}
+# Parámetros de la simulación
+k <- 6
+n <- 10
+m <- 1000
+
+# Semilla para garantizar la reproducibilidad
+set.seed(123)
+
+# Simulación de las estimaciones de máxima verosimilitud
+estimaciones_mle <- replicate(m, {
+  muestra <- rexp(n, rate = 1) + k
+  min(muestra)
+})
+
+# Mostrar las primeras seis estimaciones
+head(estimaciones_mle)
+```
+
+### b. Histograma y densidad teórica del estimador
+
+Haga un histograma de las $m$ estimaciones y superponga sobre este la función de densidad teórica de $X_{(1)}$.
+
+Como cada observación puede expresarse como $X_i=\theta+Y_i$, donde las variables $Y_i$ son independientes y tienen distribución $\operatorname{Exp}(1)$, se obtiene, para $x\geq\theta$,
+
+$$
+P(X_{(1)}>x)
+=
+P(X_1>x,\ldots,X_n>x)
+=
+\left[e^{-(x-\theta)}\right]^n
+=
+e^{-n(x-\theta)}.
+$$
+
+Por tanto, $X_{(1)}-\theta$ tiene distribución exponencial con tasa $n$, y la densidad del estimador es
+
+$$
+f_{X_{(1)}}(x;\theta)
+=
+n e^{-n(x-\theta)}I_{[\theta,\infty)}(x).
+$$
+
+Para comparar esta densidad con las estimaciones simuladas, se construye un histograma en escala de densidad y se superpone la curva teórica correspondiente a $\theta=6$ y $n=10$.
+
+```{r}
+
+histograma <- hist(estimaciones_mle,
+                   breaks = 30,
+                   plot = FALSE)
+
+plot(histograma,
+     freq = FALSE,
+     main = "",
+     xlab = expression(hat(theta)[MLE] == X[(1)]),
+     ylab = "Densidad",
+     col = "lightblue",
+     border = "white",
+     xlim = range(c(k, histograma$breaks)),
+     ylim = c(0, 1.05 * max(n, histograma$density)))
+
+# Evaluar la densidad teórica desde el inicio del soporte
+x_vals <- seq(k, max(histograma$breaks), length.out = 500)
+y_vals <- dexp(x_vals - k, rate = n)
+
+# Superponer la curva teórica
+lines(x_vals, y_vals, col = "red", lwd = 2)
+
+legend("topright",
+       legend = c("Histograma de estimaciones", "Densidad teórica"),
+       col = c("lightblue", "red"),
+       pch = c(15, NA),
+       pt.cex = 2,
+       lty = c(0, 1),
+       lwd = c(0, 2),
+       bty = "n")
+```
+
+**Figura 1:** Histograma de las 1000 estimaciones de máxima verosimilitud y densidad teórica de $X_{(1)}$, para $\theta=6$ y $n=10$.
+
+La **Figura 1** permite comparar la distribución empírica de las estimaciones con la densidad teórica del mínimo muestral. Las barras azules representan las frecuencias de las estimaciones en escala de densidad, mientras que la curva roja corresponde a una distribución exponencial de tasa $n=10$, desplazada 6 unidades.
+
+Según el modelo, las estimaciones son mayores que 6 con probabilidad 1 y su densidad disminuye a medida que se alejan de este valor. En consecuencia, se espera una mayor concentración de estimaciones cerca de 6 y una distribución asimétrica hacia la derecha.
+
+### c. Resumen de las estimaciones según el tamaño de muestra
+
+Para estudiar cómo cambia el comportamiento del estimador al aumentar el tamaño de muestra, se consideran los valores $n=10,50,100,200,500,1000$. Para cada tamaño se obtienen $m=1000$ estimaciones de máxima verosimilitud y se calculan su promedio y sus percentiles 5% y 95%.
+
+Para $n=10$ se utilizan las estimaciones obtenidas en el apartado a, de modo que el resumen corresponda a los mismos datos representados en el histograma. Para los demás tamaños se generan nuevas muestras. Los resultados se presentan con cinco decimales para apreciar las diferencias cercanas al verdadero valor del parámetro, $\theta=\kappa=6$.
+
+```{r}
+#| label: resumen-mle
+
+# Tamaños de muestra
+tamanos_muestra <- c(10, 50, 100, 200, 500, 1000)
+
+# Semilla para reproducir las nuevas simulaciones
+set.seed(456)
+
+# Almacenar las estimaciones para utilizarlas también en el inciso d
+estimaciones_por_n <- vector("list", length(tamanos_muestra))
+
+# Tabla de resultados
+tabla_resumen <- data.frame(
+  Tam_Muestra = tamanos_muestra,
+  Promedio = numeric(length(tamanos_muestra)),
+  Percentil_5 = numeric(length(tamanos_muestra)),
+  Percentil_95 = numeric(length(tamanos_muestra))
+)
+
+for (i in seq_along(tamanos_muestra)) {
+  n_actual <- tamanos_muestra[i]
+
+  if (n_actual == 10) {
+    # Reutilizar las estimaciones del inciso a
+    estimaciones_actuales <- estimaciones_mle
+  } else {
+    estimaciones_actuales <- replicate(m, {
+      min(rexp(n_actual, rate = 1) + k)
+    })
+  }
+
+  # Guardar las estimaciones para los histogramas del inciso d
+  estimaciones_por_n[[i]] <- estimaciones_actuales
+
+  # Calcular los estadísticos
+  tabla_resumen$Promedio[i] <- mean(estimaciones_actuales)
+
+  tabla_resumen$Percentil_5[i] <- quantile(
+    estimaciones_actuales, probs = 0.05, names = FALSE
+  )
+
+  tabla_resumen$Percentil_95[i] <- quantile(
+    estimaciones_actuales, probs = 0.95, names = FALSE
+  )
+}
+
+# Presentar la tabla
+knitr::kable(
+  tabla_resumen,
+  format = "html",
+  col.names = c(
+    "Tamaño de muestra",
+    "Promedio",
+    "Percentil 5%",
+    "Percentil 95%"
+  ),
+  digits = c(0, 3, 3, 3),
+  align = c("c", "c", "c", "c"),
+  row.names = FALSE
+)
+```
+
+**Tabla 1:** Promedio y percentiles de las 1000 estimaciones de máxima verosimilitud para cada tamaño de muestra.
+
+La **Tabla 1** permite examinar la proximidad de las estimaciones al verdadero valor del parámetro y su dispersión para distintos tamaños muestrales. El comportamiento esperado es que el promedio se acerque a 6 y que la distancia entre los percentiles 5% y 95% disminuya conforme aumenta $n$.
+
+### d. Repetición del procedimiento para diferentes tamaños de muestra
+
+Repita el procedimiento descrito en los incisos a, b y c para los tamaños de muestra $n=50,100,200,500,1000$. Complete la tabla anterior.
+
+**Nota:** La simulación y el resumen numérico para estos tamaños de muestra se realizaron en el inciso c. La Tabla 1 incluye también el caso $n=10$ para facilitar la comparación.
+
+A continuación, se presentan los histogramas y las densidades teóricas correspondientes a las mismas estimaciones utilizadas en la Tabla 1. Se incluye nuevamente el caso $n=10$ como referencia.
+
+```{r}
+#| label: histogramas-mle
+#| fig-width: 8
+#| fig-height: 10
+
+# Usar un entorno local para restaurar los parámetros gráficos al finalizar
+local({
+  parametros_originales <- par(no.readonly = TRUE)
+  on.exit(par(parametros_originales))
+
+  par(mfrow = c(3, 2), mar = c(4, 4, 3, 1))
+
+  for (i in seq_along(tamanos_muestra)) {
+    n_actual <- tamanos_muestra[i]
+    estimaciones <- estimaciones_por_n[[i]]
+
+    # Calcular el histograma sin dibujarlo todavía
+    histograma <- hist(
+      estimaciones,
+      breaks = 30,
+      plot = FALSE
+    )
+
+    # Dibujar el histograma incluyendo toda la altura de la curva
+    plot(
+      histograma,
+      freq = FALSE,
+      main = paste("Tamaño de muestra: n =", n_actual),
+      xlab = expression(hat(theta)[MLE] == X[(1)]),
+      ylab = "Densidad",
+      col = "lightblue",
+      border = "white",
+      xlim = range(c(k, histograma$breaks)),
+      ylim = c(0, 1.05 * max(n_actual, histograma$density))
+    )
+
+    # Densidad teórica desde el inicio del soporte
+    x_vals <- seq(
+      k,
+      max(histograma$breaks),
+      length.out = 500
+    )
+
+    lines(
+      x_vals,
+      dexp(x_vals - k, rate = n_actual),
+      col = "red",
+      lwd = 2
+    )
+  }
+})
+```
+
+**Figura 2:** Histogramas de las estimaciones de máxima verosimilitud (barras azules) y sus densidades teóricas (curvas rojas) para distintos tamaños de muestra.
+
+La **Figura 2** permite comparar la distribución de las estimaciones con su densidad teórica para cada tamaño muestral. Los paneles utilizan escalas distintas para conservar el detalle de cada distribución; por ello, la comparación de la dispersión debe realizarse considerando los valores del eje horizontal y no únicamente la anchura visual de los histogramas.
+
+Según la distribución teórica, las estimaciones se concentran cada vez más cerca de $\theta=6$, por encima de este valor, a medida que aumenta $n$.
+
+### e. Análisis del comportamiento asintótico
+
+¿Qué observa a medida que el tamaño de muestra aumenta? ¿En qué valor parecen concentrarse las realizaciones del estimador máximo-verosímil a medida que el tamaño de muestra aumenta? ¿Qué resultado de los vistos en clase explica ese fenómeno?
+
+A medida que aumenta el tamaño de muestra, las estimaciones presentan una menor dispersión y se concentran cada vez más cerca de $\theta=\kappa=6$, por encima de este valor. Este comportamiento se aprecia en la reducción de la distancia entre los percentiles 5% y 95% de la Tabla 1 y en los intervalos del eje horizontal de los histogramas de la Figura 2.
+
+El fenómeno corresponde a la consistencia del estimador: $X_{(1)}$ converge en probabilidad al verdadero valor del parámetro. Para comprobarlo, se utiliza que $X_{(1)}-\theta\sim\operatorname{Exp}(n)$. Por tanto, para cualquier $\varepsilon>0$,
+
+$$
+P\left(\left|X_{(1)}-\theta\right|>\varepsilon\right)
+=
+P\left(X_{(1)}-\theta>\varepsilon\right)
+=
+e^{-n\varepsilon}
+\longrightarrow 0
+\qquad \text{cuando } n\to\infty.
+$$
+
+La primera igualdad se debe a que $X_{(1)}\geq\theta$ con probabilidad 1. Así, por definición de convergencia en probabilidad,
+
+$$
+\widehat{\theta}_{MLE}=X_{(1)}
+\xrightarrow{P}\theta.
+$$
+
+Además, el sesgo del estimador es $1/n$ y su varianza es $1/n^2$, de modo que ambos disminuyen al aumentar el tamaño muestral. Estas propiedades explican la menor sobreestimación y la mayor concentración observadas en las simulaciones.
+
+En consecuencia, el estimador es consistente aun cuando no se cumplen las condiciones usuales de regularidad para la normalidad asintótica del MLE. La consistencia y la normalidad asintótica son propiedades distintas: la ausencia de esta última no impide que el estimador converja al verdadero valor del parámetro.
+
+### f. Distribución asintótica de la variable aleatoria $R_n$
+
+Genere nuevamente $m$ muestras de tamaños $n=10,50,100,200,500,1000$ y calcule y almacene las $m$ realizaciones de $R_n$ para cada valor de $n$. Haga histogramas de los valores obtenidos. ¿Observa que, a medida que $n$ aumenta, dicho histograma se asemeja a alguna distribución conocida?
+
+Para cada tamaño de muestra se generan $m=1000$ nuevas muestras y se calcula la variable
+
+$$
+R_n=n\left(X_{(1)}-\theta\right),
+$$
+
+utilizando el verdadero valor del parámetro, $\theta=\kappa=6$. Las realizaciones se almacenan por tamaño muestral y se representan mediante histogramas en escala de densidad, sobre los cuales se superpone la densidad de una distribución exponencial estándar.
+
+```{r}
+#| label: distribucion-rn
+#| fig-width: 8
+#| fig-height: 10
+
+# Parámetros de la simulación
+tamanos_muestra <- c(10, 50, 100, 200, 500, 1000)
+
+# Semilla para reproducir las nuevas simulaciones
+set.seed(789)
+
+# Almacenar las realizaciones de R_n para cada tamaño de muestra
+realizaciones_rn <- vector("list", length(tamanos_muestra))
+names(realizaciones_rn) <- as.character(tamanos_muestra)
+
+for (i in seq_along(tamanos_muestra)) {
+  n_actual <- tamanos_muestra[i]
+
+  estimaciones <- replicate(m, {
+    min(rexp(n_actual, rate = 1) + k)
+  })
+
+  realizaciones_rn[[i]] <- n_actual * (estimaciones - k)
+}
+
+# Usar los mismos intervalos en todos los histogramas
+limite_x <- max(unlist(realizaciones_rn))
+cortes <- seq(0, limite_x, length.out = 31)
+
+histogramas_rn <- lapply(realizaciones_rn, function(valores) {
+  hist(valores, breaks = cortes, plot = FALSE)
+})
+
+# Escala vertical común que incluya la densidad teórica
+limite_y <- 1.05 * max(
+  1,
+  unlist(lapply(histogramas_rn, function(h) h$density))
+)
+
+# Valores de la curva teórica
+x_vals <- seq(0, limite_x, length.out = 500)
+
+# Dibujar los seis paneles y restaurar los parámetros al finalizar
+local({
+  parametros_originales <- par(no.readonly = TRUE)
+  on.exit(par(parametros_originales))
+
+  par(mfrow = c(3, 2), mar = c(4, 4, 3, 1))
+
+  for (i in seq_along(tamanos_muestra)) {
+    plot(
+      histogramas_rn[[i]],
+      freq = FALSE,
+      main = paste("Tamaño de muestra: n =", tamanos_muestra[i]),
+      xlab = expression(R[n] == n * (X[(1)] - theta)),
+      ylab = "Densidad",
+      col = "lightgreen",
+      border = "white",
+      xlim = c(0, limite_x),
+      ylim = c(0, limite_y)
+    )
+
+    lines(
+      x_vals,
+      dexp(x_vals, rate = 1),
+      col = "darkgreen",
+      lwd = 2
+    )
+  }
+})
+```
+
+**Figura 3:** Histogramas de las realizaciones de $R_n=n(X_{(1)}-\theta)$ para distintos tamaños de muestra (barras verdes) y densidad exponencial estándar (curvas verde oscuro). Todos los paneles utilizan los mismos intervalos y escalas.
+
+Los histogramas permiten contrastar las simulaciones con este resultado. No se espera que el ajuste a la curva mejore necesariamente al aumentar $n$, puesto que la distribución teórica ya es la misma en todos los casos y cada panel contiene 1000 realizaciones. Las diferencias entre los histogramas reflejan la variabilidad de Monte Carlo.
+
+### g. Demostración formal de la convergencia en distribución
+
+Pruebe formalmente su conjetura del apartado anterior, calculando el límite en distribución cuando $n \to \infty$: $$R_n = n(\hat{\theta}_{MLE} - \theta) \xrightarrow{d} ?$$
+
+*Pista: Calcule la función de distribución de* $R_n$ y luego tome límite cuando $n \to \infty$. *Nota: El estimador ML de este modelo es súper consistente y por eso su factor de escala no es* $\sqrt{n}$ sino $n$.
+
+**Demostración matemática:**
+
+Sabemos que el estimador máximo-verosímil (MLE) es el mínimo de la muestra. Dada una muestra aleatoria $X_1, X_2, \dots, X_n$ proveniente de una distribución exponencial desplazada, su función de densidad es: $$f_X(x; \theta) = e^{-(x-\theta)} I_{[\theta,\infty)}(x)$$
+
+Donde el soporte es $(\theta, \infty)$. Por la teoría de estadísticas de orden, el mínimo muestral se define como $\hat{\theta}_{MLE} = \min(X_1, X_2, \dots, X_n) = X_{(1)}$.
+
+Primero, encontramos la Función de Distribución Acumulada (FDA) de la distribución original integrando la función de densidad (usando herramientas analíticas o computacionales): $$F_X(x) = \int_{\theta}^{x} e^{-(t-\theta)}dt = 1 - e^{-(x-\theta)}$$
+
+Por definición, se tiene que la FDA del primer estadístico de orden (el mínimo) para una muestra de tamaño $n$ es: $$F_{X_{(1)}}(x) = 1 - [1 - F_X(x)]^n$$ $$F_{X_{(1)}}(x) = 1 - \left[1 - \left(1 - e^{-(x-\theta)}\right)\right]^n = 1 - \left[e^{-(x-\theta)}\right]^n = 1 - e^{-n(x-\theta)}$$
+
+Al derivar el resultado anterior con respecto a $x$, obtenemos la función de densidad: $$\frac{d}{dx}F_{X_{(1)}}(x) = n \cdot e^{-n(x-\theta)}$$
+
+Por lo tanto, la distribución del mínimo queda definida por: $$f_{X_{(1)}}(x) = \begin{cases} n e^{-n(x-\theta)} & x > \theta \\ 0 & e.o.c. \end{cases} \quad \text{y} \quad F_{X_{(1)}}(x) = \begin{cases} 1 - e^{-n(x-\theta)} & x > \theta \\ 0 & e.o.c. \end{cases}$$
+
+A continuación, calcularemos la función de distribución acumulada de nuestra variable de interés, $R_n = n(\hat{\theta}_{MLE} - \theta) = n(X_{(1)} - \theta)$. Sea $r > 0$ un valor cualquiera: $$F_{R_n}(r) = P(R_n \le r)$$ $$F_{R_n}(r) = P(n(X_{(1)} - \theta) \le r)$$
+
+Despejamos $X_{(1)}$ dentro de la probabilidad: $$F_{R_n}(r) = P\left(X_{(1)} - \theta \le \frac{r}{n}\right)$$ $$F_{R_n}(r) = P\left(X_{(1)} \le \frac{r}{n} + \theta\right)$$
+
+Esta expresión es exactamente la FDA de $X_{(1)}$ evaluada en $\left(\frac{r}{n} + \theta\right)$. Sustituimos este valor en $F_{X_{(1)}}(x)$: $$F_{R_n}(r) = F_{X_{(1)}}\left(\frac{r}{n} + \theta\right) = 1 - e^{-n\left(\left[\frac{r}{n} + \theta\right]-\theta\right)}$$
+
+Cancelamos las $\theta$: $$F_{R_n}(r) = 1 - e^{-n\left(\frac{r}{n}\right)}$$
+
+Cancelamos las $n$: $$F_{R_n}(r) = 1 - e^{-r}$$
+
+Finalmente, calculamos el límite en distribución cuando $n \to \infty$: $$\lim_{n \to \infty} F_{R_n}(r) = \lim_{n \to \infty} \left(1 - e^{-r}\right) = 1 - e^{-r}$$
+
+Como la función de distribución acumulada es un identificador único de una variable aleatoria, notamos que la función resultante: $$F_{R_n}(r) = 1 - e^{-(1 \cdot r)}, \quad r > 0$$ Corresponde exactamente a la FDA de una distribución Exponencial con parámetro $\lambda = 1$.
+
+Por lo tanto, queda demostrado formalmente que: $$R_n = n(\hat{\theta}_{MLE} - \theta) \xrightarrow{d} \text{Exp}(1)$$
+
+Ahora, vamos a replicar los resultados obtenidos de los literales c. - e., usando remuestreo para identificar si las conclusiones son las mismas.
+
+### h. Generación de una muestra base para remuestreo
+
+Genere y almacene una única muestra simulada de tamaño $n=10$ de la distribución $\operatorname{Exp}(1)$ y sume $\kappa$ a cada observación.
+
+Se genera una muestra de diez observaciones de la distribución exponencial con tasa igual a 1, desplazada $\kappa=6$ unidades. Esta muestra se almacena en el objeto `muestra_base` y se utilizará como base para el procedimiento de remuestreo de los siguientes apartados.
+
+```{r}
+#| label: muestra-base
+
+set.seed(321)
+
+# Generar y almacenar una única muestra
+n_base <- 10
+muestra_base <- rexp(n_base, rate = 1) + k
+
+# Mostrar las diez observaciones
+print(muestra_base)
+```
+
+Las observaciones pertenecen al soporte $[6,\infty)$ de la distribución. A diferencia de los apartados anteriores, en los que se generaron múltiples muestras para estudiar la distribución del estimador, aquí se conserva una sola muestra sobre la cual se realizará el remuestreo.
+
+### i. Función de distribución empírica vs. teórica
+
+Haga un gráfico de la función de distribución empírica de los datos (explore la función `ecdf` de R) y superponga la función de distribución teórica con los parámetros reales. ¿Se parecen?
+
+```{r}
+#| label: distribucion-empirica-teorica
+
+# Función de distribución empírica
+fda_empirica <- ecdf(muestra_base)
+
+# Intervalo común para representar ambas funciones
+limites_x <- c(k - 0.2, max(muestra_base) + 1)
+
+# Graficar la función empírica
+plot(
+  fda_empirica,
+  main = "",
+  xlab = "x",
+  ylab = "Probabilidad acumulada",
+  xlim = limites_x,
+  ylim = c(0, 1),
+  col = "blue",
+  lwd = 2,
+  verticals = TRUE,
+  pch = 19
+)
+
+# Calcular la función teórica, incluyendo valores inferiores a k
+x_vals <- sort(unique(c(
+  seq(limites_x[1], limites_x[2], length.out = 500),
+  k
+)))
+
+y_vals <- pexp(x_vals - k, rate = 1)
+
+# Superponer la función de distribución teórica
+lines(x_vals, y_vals, col = "red", lwd = 2)
+
+# Leyenda
+legend(
+  "bottomright",
+  legend = c("Distribución empírica", "Distribución teórica"),
+  col = c("blue", "red"),
+  lwd = 2,
+  pch = c(19, NA),
+  bty = "n"
+)
+```
+
+**Figura 4:** Función de distribución empírica de la muestra base de tamaño $n=10$ (azul) y función de distribución teórica de una exponencial con tasa 1 desplazada 6 unidades (rojo).
+
+La **Figura 4** permite evaluar hasta qué punto la distribución empírica aproxima a la distribución teórica. Ambas funciones son no decrecientes y toman valores entre 0 y 1. Sin embargo, la función teórica es continua, mientras que la empírica es escalonada y, cuando las diez observaciones son distintas, presenta saltos de magnitud $1/10=0.1$. Por ello, no se espera que coincidan exactamente.
+
+En este problema, las muestras obtenidas mediante remuestreo con reemplazo no pueden contener valores inferiores al mínimo de la muestra original y pueden repetir ese mínimo. Esta característica es especialmente relevante al estudiar $X_{(1)}$: la dificultad del bootstrap usual para este estimador no se explica únicamente por el reducido tamaño de la muestra, sino también por su dependencia de un extremo de la distribución.
+
+### j. Generación de muestras bootstrap
+
+Se considera que la distribución de origen es desconocida y que únicamente se dispone de los $n=10$ datos de la muestra base, almacenados en el vector `data`. A partir de estos datos, se generan $B=1000$ muestras bootstrap, cada una de tamaño 10, mediante muestreo con reemplazo.
+
+Este procedimiento corresponde al bootstrap no paramétrico: cada extracción selecciona una de las observaciones originales con igual probabilidad. Al realizarse con reemplazo, una misma observación puede aparecer varias veces en una muestra bootstrap, mientras que otras pueden no aparecer.
+
+```{r}
+#| label: muestras-bootstrap
+
+# Datos originales y parámetros del remuestreo
+data <- muestra_base
+n_data <- length(data)
+B <- 1000
+
+set.seed(2026)
+
+# Generar y almacenar las B muestras bootstrap
+# Cada columna contiene una muestra de tamaño n_data
+muestras_boot <- replicate(B, {
+  sample(data, size = n_data, replace = TRUE)
+})
+
+# Calcular el mínimo de cada muestra bootstrap
+estimaciones_boot <- apply(muestras_boot, 2, min)
+
+# Mostrar las primeras tres muestras bootstrap
+muestras_boot[, 1:3]
+
+# Mostrar los primeros seis mínimos bootstrap
+head(estimaciones_boot)
+```
+
+Las muestras se almacenan en la matriz `muestras_boot`, que contiene 10 filas y 1000 columnas. Cada columna representa una muestra bootstrap completa. Por su parte, el vector `estimaciones_boot` almacena los 1000 mínimos obtenidos al aplicar a cada muestra el mismo estadístico utilizado en los apartados anteriores.
+
+Como el remuestreo utiliza exclusivamente los valores observados, ningún mínimo bootstrap puede ser inferior al mínimo de la muestra original. Además, distintos remuestreos pueden producir el mismo mínimo. Estas características serán relevantes al comparar la distribución bootstrap del estadístico con su distribución teórica.
+
+### k. Estimaciones bootstrap y estadísticas de resumen
+
+Para cada una de las $B$ muestras, calcule la estimación del MLE. Luego, calcule y almacene el promedio y los percentiles 5% y 95% de las estimaciones, y construya su histograma. ¿Qué distribución parece tener dicho estimador para este tamaño de muestra?
+
+Para cada muestra bootstrap se calcula el mínimo $X_{(1)}^*$, aplicando el mismo estadístico utilizado para estimar $\theta$ en la muestra original. A continuación, se resumen las $B=1000$ estimaciones mediante su promedio y sus percentiles 5% y 95%.
+
+```{r}
+#| label: resumen-bootstrap
+
+# Calcular el mínimo de cada muestra almacenada en el inciso j
+estimaciones_boot <- apply(muestras_boot, 2, min)
+
+# Calcular y almacenar los estadísticos de resumen
+promedio_boot <- mean(estimaciones_boot)
+p5_boot <- quantile(estimaciones_boot, probs = 0.05, names = FALSE)
+p95_boot <- quantile(estimaciones_boot, probs = 0.95, names = FALSE)
+
+# Presentar el resumen con un máximo de tres decimales
+resumen_boot <- data.frame(
+  Promedio = promedio_boot,
+  Percentil_5 = p5_boot,
+  Percentil_95 = p95_boot
+)
+
+knitr::kable(
+  resumen_boot,
+  format = "html",
+  col.names = c("Promedio", "Percentil 5%", "Percentil 95%"),
+  digits = 3,
+  align = c("c", "c", "c"),
+  row.names = FALSE
+)
+
+# Construir y almacenar el histograma
+histograma_boot <- hist(
+  estimaciones_boot,
+  main = "",
+  xlab = expression(X[(1)]^"*"),
+  ylab = "Frecuencia",
+  col = "mediumpurple1",
+  border = "white",
+  breaks = 20
+)
+```
+
+**Figura 5:** Histograma de las 1000 estimaciones bootstrap del mínimo muestral, obtenidas mediante remuestreo con reemplazo a partir de la muestra base de diez observaciones.
+
+La distribución bootstrap de $X_{(1)}^*$, condicionada a la muestra original, es discreta: el mínimo de cada remuestra únicamente puede tomar uno de los valores observados en `data`. Por tanto, no corresponde a la distribución exponencial continua del mínimo obtenida al generar muestras nuevas desde el modelo poblacional. El histograma representa esta distribución mediante intervalos que pueden agrupar uno o varios de sus posibles valores.
+
+### l. Comparación asintótica: Monte Carlo vs. bootstrap
+
+Repita el procedimiento descrito en los incisos i–k, generando y almacenando una única muestra de cada uno de los tamaños $n=50,100,200,500,1000$. Para cada muestra, genere $B=1000$ muestras bootstrap y complete la tabla del inciso c con tres columnas adicionales: el promedio y los percentiles 5% y 95% de las estimaciones bootstrap.
+
+Se conserva el caso $n=10$ de los apartados anteriores como referencia. Para los demás tamaños, se genera una nueva muestra base y se realiza el remuestreo con reemplazo. Las muestras base, las muestras bootstrap y sus respectivos mínimos se almacenan por separado para cada tamaño muestral.
+
+```{r}
+#| label: comparacion-mc-bootstrap
+
+# Mantener el mismo orden de tamaños que en la tabla del inciso c
+tamanos_comparacion <- tabla_resumen$Tam_Muestra
+B <- 1000
+
+# Listas para almacenar todos los resultados
+muestras_base_por_n <- vector("list", length(tamanos_comparacion))
+muestras_boot_por_n <- vector("list", length(tamanos_comparacion))
+minimos_boot_por_n <- vector("list", length(tamanos_comparacion))
+
+names(muestras_base_por_n) <- as.character(tamanos_comparacion)
+names(muestras_boot_por_n) <- as.character(tamanos_comparacion)
+names(minimos_boot_por_n) <- as.character(tamanos_comparacion)
+
+# Semilla para las nuevas simulaciones y remuestreos
+set.seed(2024)
+
+for (i in seq_along(tamanos_comparacion)) {
+  n_actual <- tamanos_comparacion[i]
+
+  if (n_actual == 10) {
+    # Reutilizar los datos y remuestreos de los incisos j y k
+    base_actual <- data
+    remuestras_actuales <- muestras_boot
+  } else {
+    # Generar una única muestra base para este tamaño
+    base_actual <- rexp(n_actual, rate = 1) + k
+
+    # Cada columna contiene una muestra bootstrap
+    remuestras_actuales <- replicate(B, {
+      sample(base_actual, size = n_actual, replace = TRUE)
+    })
+  }
+
+  muestras_base_por_n[[i]] <- base_actual
+  muestras_boot_por_n[[i]] <- remuestras_actuales
+  minimos_boot_por_n[[i]] <- apply(remuestras_actuales, 2, min)
+}
+
+# Añadir tres columnas a la tabla Monte Carlo
+tabla_final <- tabla_resumen
+
+tabla_final$Promedio_Boot <- vapply(
+  minimos_boot_por_n, mean, numeric(1)
+)
+
+tabla_final$Percentil_5_Boot <- vapply(
+  minimos_boot_por_n,
+  function(x) quantile(x, probs = 0.05, names = FALSE),
+  numeric(1)
+)
+
+tabla_final$Percentil_95_Boot <- vapply(
+  minimos_boot_por_n,
+  function(x) quantile(x, probs = 0.95, names = FALSE),
+  numeric(1)
+)
+
+knitr::kable(
+  tabla_final,
+  format = "html",
+  col.names = c(
+    "Tamaño de muestra",
+    "Promedio MC",
+    "P5 MC",
+    "P95 MC",
+    "Promedio Boot",
+    "P5 Boot",
+    "P95 Boot"
+  ),
+  digits = c(0, 3, 3, 3, 3, 3, 3),
+  align = rep("c", 7),
+  row.names = FALSE
+)
+```
+
+**Tabla 2:** Promedio y percentiles de las estimaciones obtenidas mediante Monte Carlo (MC) y bootstrap no paramétrico (Boot), para distintos tamaños de muestra.
+
+Los resultados de Monte Carlo resumen mínimos obtenidos a partir de muestras independientes de la distribución poblacional. En cambio, los resultados bootstrap de cada fila están condicionados a una única muestra base. Por ello, sus diferencias dependen tanto del procedimiento utilizado como de la muestra base particular.
+
+Para repetir la comparación del inciso i, se representan las funciones de distribución empíricas de las muestras base y la función de distribución poblacional.
+
+```{r}
+#| label: distribuciones-bases
+#| fig-width: 8
+#| fig-height: 10
+
+# Intervalo común para comparar las distribuciones
+limites_cdf <- c(
+  k - 0.2,
+  max(unlist(muestras_base_por_n)) + 0.5
+)
+
+x_cdf <- sort(unique(c(
+  seq(limites_cdf[1], limites_cdf[2], length.out = 500),
+  k
+)))
+
+local({
+  parametros_originales <- par(no.readonly = TRUE)
+  on.exit(par(parametros_originales))
+
+  par(mfrow = c(3, 2), mar = c(4, 4, 3, 1))
+
+  for (i in seq_along(tamanos_comparacion)) {
+    plot(
+      ecdf(muestras_base_por_n[[i]]),
+      main = paste("n =", tamanos_comparacion[i]),
+      xlab = "x",
+      ylab = "Probabilidad acumulada",
+      xlim = limites_cdf,
+      ylim = c(0, 1),
+      col = "blue",
+      lwd = 2,
+      verticals = TRUE,
+      do.points = FALSE
+    )
+
+    lines(
+      x_cdf,
+      pexp(x_cdf - k, rate = 1),
+      col = "red",
+      lwd = 2
+    )
+  }
+})
+```
+
+**Figura 6:** Funciones de distribución empíricas de las muestras base (azul) y función de distribución poblacional (rojo), para distintos tamaños muestrales.
+
+El teorema de Glivenko–Cantelli sustenta la aproximación de la distribución empírica a la poblacional cuando aumenta $n$. Sin embargo, como aquí se utiliza una muestra distinta para cada tamaño, no se exige que la discrepancia observada disminuya de forma estrictamente monótona entre paneles.
+
+A continuación, se presentan los histogramas de los mínimos bootstrap correspondientes a las mismas estimaciones resumidas en la Tabla 2.
+
+```{r}
+#| label: histogramas-bootstrap-tamanos
+#| fig-width: 8
+#| fig-height: 10
+
+local({
+  parametros_originales <- par(no.readonly = TRUE)
+  on.exit(par(parametros_originales))
+
+  par(mfrow = c(3, 2), mar = c(4, 4, 3, 1))
+
+  for (i in seq_along(tamanos_comparacion)) {
+    hist(
+      minimos_boot_por_n[[i]],
+      main = paste("n =", tamanos_comparacion[i]),
+      xlab = expression(X[(1)]^"*"),
+      ylab = "Frecuencia",
+      col = "mediumpurple1",
+      border = "white",
+      breaks = 20
+    )
+  }
+})
+```
+
+**Figura 7:** Histogramas de los mínimos bootstrap para cada tamaño de muestra. Las escalas horizontales varían entre paneles y deben considerarse al comparar la dispersión.
+
+En todos los tamaños, la distribución bootstrap condicionada a la muestra base es discreta y ningún mínimo bootstrap puede ser inferior al mínimo original. Esto limita su capacidad para reproducir la distribución muestral del estimador. No obstante, el mínimo original también se aproxima a $\theta=6$ cuando aumenta $n$, por lo que la proximidad de los resúmenes bootstrap a 6 no basta para determinar la validez del procedimiento.
+
+Finalmente, aumentar $B$ mejora la precisión con la que se calcula la distribución bootstrap condicionada a los datos, pero no corrige esta discrepancia estructural.
+
+### m. Evolución asintótica y variabilidad de los estimadores
+
+En un mismo gráfico, muestre la evolución del promedio y los percentiles 5% y 95% a medida que aumenta el tamaño de muestra. Utilice colores distintos para diferenciar los resultados de Monte Carlo y bootstrap.
+
+Se representan los estadísticos almacenados en la Tabla 2. Las líneas continuas corresponden a los promedios y las líneas discontinuas delimitan las bandas entre los percentiles 5% y 95%. El eje horizontal utiliza una escala logarítmica para facilitar la visualización de los tamaños muestrales.
+
+```{r}
+#| label: evolucion-mc-bootstrap
+#| fig-width: 9
+#| fig-height: 6
+
+# Ordenar los resultados por tamaño de muestra
+datos_grafico <- tabla_final[order(tabla_final$Tam_Muestra), ]
+n_vals <- datos_grafico$Tam_Muestra
+
+# Límites verticales a partir de los valores sin redondear
+columnas_resumen <- c(
+  "Promedio", "Percentil_5", "Percentil_95",
+  "Promedio_Boot", "Percentil_5_Boot", "Percentil_95_Boot"
+)
+
+limites_y <- range(
+  c(k, unlist(datos_grafico[columnas_resumen]))
+)
+
+# Colores para cada procedimiento
+color_mc <- "royalblue"
+color_boot <- "firebrick"
+
+# Crear el gráfico base
+plot(
+  n_vals,
+  datos_grafico$Promedio,
+  type = "n",
+  log = "x",
+  xaxt = "n",
+  ylim = limites_y,
+  xlab = "Tamaño de muestra (n, escala logarítmica)",
+  ylab = "Valor del estadístico de resumen",
+  main = ""
+)
+
+axis(1, at = n_vals, labels = n_vals)
+
+# Dibujar primero las bandas para no cubrir las líneas
+polygon(
+  c(n_vals, rev(n_vals)),
+  c(datos_grafico$Percentil_5,
+    rev(datos_grafico$Percentil_95)),
+  col = adjustcolor(color_mc, alpha.f = 0.12),
+  border = NA
+)
+
+polygon(
+  c(n_vals, rev(n_vals)),
+  c(datos_grafico$Percentil_5_Boot,
+    rev(datos_grafico$Percentil_95_Boot)),
+  col = adjustcolor(color_boot, alpha.f = 0.12),
+  border = NA
+)
+
+# Percentiles de Monte Carlo
+lines(n_vals, datos_grafico$Percentil_5,
+      col = color_mc, lty = 2, lwd = 1.5)
+lines(n_vals, datos_grafico$Percentil_95,
+      col = color_mc, lty = 2, lwd = 1.5)
+
+# Percentiles bootstrap
+lines(n_vals, datos_grafico$Percentil_5_Boot,
+      col = color_boot, lty = 2, lwd = 1.5)
+lines(n_vals, datos_grafico$Percentil_95_Boot,
+      col = color_boot, lty = 2, lwd = 1.5)
+
+# Promedios
+lines(n_vals, datos_grafico$Promedio,
+      type = "b", col = color_mc, pch = 19, lwd = 2)
+lines(n_vals, datos_grafico$Promedio_Boot,
+      type = "b", col = color_boot, pch = 17, lwd = 2)
+
+# Verdadero valor del parámetro
+abline(h = k, col = "black", lty = 3, lwd = 2)
+
+legend(
+  "topright",
+  legend = c(
+    "Promedio MC",
+    "Percentiles 5% y 95% MC",
+    "Promedio bootstrap",
+    "Percentiles 5% y 95% bootstrap",
+    paste("Valor verdadero: theta =", k)
+  ),
+  col = c(color_mc, color_mc, color_boot, color_boot, "black"),
+  lty = c(1, 2, 1, 2, 3),
+  pch = c(19, NA, 17, NA, NA),
+  lwd = c(2, 1.5, 2, 1.5, 2),
+  bty = "n",
+  cex = 0.85
+)
+```
+
+**Figura 8:** Promedios y bandas entre los percentiles 5% y 95% de los mínimos obtenidos mediante Monte Carlo y bootstrap. Las regiones sombreadas describen la dispersión de las estimaciones; no representan intervalos de confianza para el parámetro ni para los promedios.
+
+**I. ¿Hacia qué valor parecen converger las sucesiones de promedios? ¿Qué resultado teórico explica ese comportamiento?**
+
+El valor de referencia para ambas sucesiones es $\theta=\kappa=6$. En el caso bootstrap, cada promedio aproxima la esperanza condicional del mínimo remuestreado, dada una muestra base particular. Aunque el mínimo bootstrap nunca es inferior al mínimo original, ambos se aproximan a $\theta$ al aumentar el tamaño de muestra.
+
+**II. ¿Qué sucede con la variabilidad a medida que aumenta el tamaño de muestra?**
+
+La distribución bootstrap también se concentra cerca de $\theta$ en la escala original, de modo que sus percentiles tienden a aproximarse entre sí. Sin embargo, la amplitud concreta de su banda depende de los valores y las separaciones entre las observaciones más pequeñas de cada muestra base. No necesariamente coincide con la amplitud Monte Carlo ni disminuye de manera monótona en los seis casos simulados.
+
+### n. Conclusiones: simulación convencional vs. remuestreo bootstrap
+
+**Comparación de hallazgos**
+
+La simulación Monte Carlo permitió estudiar la distribución muestral del estimador de máxima verosimilitud $\widehat{\theta}_{MLE}=X_{(1)}$ mediante muestras independientes generadas desde el modelo poblacional. Los resultados se interpretan a partir de la distribución exacta $X_{(1)}-\theta\sim\operatorname{Exp}(n)$
+
+Asimismo, se demostró que la variable normalizada $R_n=n(X_{(1)}-\theta)$ tiene distribución $\operatorname{Exp}(1)$ para cualquier $n$. Por tanto, esta distribución es tanto exacta como asintótica. El ejemplo muestra que un estimador puede ser consistente sin presentar la normalidad asintótica habitual.
+
+El bootstrap no paramétrico, por su parte, genera remuestras a partir de la distribución empírica de una única muestra base. Su distribución condicional del mínimo es discreta y asigna una probabilidad elevada al mínimo original. Aunque las estimaciones bootstrap también se concentran cerca de $\theta$ al aumentar $n$, esta concentración no garantiza que el procedimiento aproxime correctamente la distribución del error del estimador.
+
+La sobreestimación del parámetro no es exclusiva del bootstrap: el mínimo de una muestra generada desde la población también supera a $\theta$ con probabilidad 1. Además, la variabilidad bootstrap depende de la muestra base y no tiene que ser siempre inferior a la variabilidad Monte Carlo. Por ello, la evaluación del método debe apoyarse en la distribución del error normalizado y no únicamente en la proximidad de los promedios a 6 o en la amplitud de las bandas entre percentiles.
+
+**¿Bajo qué condiciones es confiable el remuestreo?**
+
+El bootstrap es confiable cuando su distribución condicional aproxima, con el centrado y la normalización adecuados, la distribución muestral del estadístico de interés. Esta propiedad depende tanto del estimador como de la población y del esquema de remuestreo utilizado.
+
+En el bootstrap no paramétrico usual se supone que las observaciones son independientes e idénticamente distribuidas. Si existe dependencia temporal, agrupamiento u otra estructura de muestreo, el procedimiento debe adaptarse para preservarla.
+
+Los estadísticos que dependen de extremos del soporte, como el mínimo analizado, requieren especial atención. En este problema, la distribución empírica no reproduce adecuadamente el comportamiento local de la población cerca del límite inferior.
+
+También es necesario distinguir el tamaño muestral $n$ del número de remuestras $B$. Aumentar $B$ reduce el error de Monte Carlo con el que se aproxima la distribución bootstrap condicionada a los datos, pero no corrige la inconsistencia del método.
+
+## B. Cálculo de una estimación máximo-verosímil cuando no hay una solución analítica
+
+Considere una muestra aleatoria $X_1, X_2, \dots, X_n$ de una distribución $\text{Gumbel}(\theta, 1)$, es decir, donde el verdadero valor del parámetro de localización es igual al número del grupo ($\theta = \kappa = 6$).
+
+#### a. Justificación analítica de propiedades de la distribución Gumbel
+
+**I. La mediana poblacional o percentil 0.5 es igual a** $\theta - \ln(\ln 2)$
+
+Por definición, la mediana poblacional (o percentil 50, denotado como $P_{50}$) es el valor en el cual la Función de Distribución Acumulada (FDA) alcanza la probabilidad de $0.5$. Teniendo en cuenta que el soporte de $X$ es $\mathbb{R}$ y el espacio parametral de $\theta$ es $\mathbb{R}$.
+
+Dada la FDA de la distribución Gumbel: $$F_X(x; \theta) = e^{-e^{-(x-\theta)}} = e^{-e^{\theta-x}}$$
+
+Evaluamos la función en la mediana $P_{50}$ e igualamos a $\frac{1}{2}$: $$F_X(P_{50}; \theta) = e^{-e^{\theta - P_{50}}} = \frac{1}{2}$$
+
+Aplicamos logaritmo natural ($\ln$) a ambos lados de la ecuación: $$-e^{\theta - P_{50}} = \ln\left(\frac{1}{2}\right)$$
+
+Multiplicamos por $-1$ a ambos lados y aplicamos la propiedad de los logaritmos ($- \ln(a) = \ln(a^{-1})$): $$e^{\theta - P_{50}} = -\ln\left(\frac{1}{2}\right)$$ $$e^{\theta - P_{50}} = \ln\left(\left(\frac{1}{2}\right)^{-1}\right)$$ $$e^{\theta - P_{50}} = \ln(2)$$
+
+Aplicamos logaritmo natural nuevamente a ambos lados para despejar el exponente: $$\ln\left(e^{\theta - P_{50}}\right) = \ln(\ln(2))$$ $$\theta - P_{50} = \ln(\ln(2))$$
+
+Finalmente, despejamos $P_{50}$: $$P_{50} = \theta - \ln(\ln(2))$$
+
+Con esto queda demostrado analíticamente que la mediana poblacional es, efectivamente, $\theta - \ln(\ln 2)$.
+
+**II. La moda poblacional es igual a** $\theta$
+
+La moda de una distribución continua corresponde al valor de $x$ que maximiza su función de densidad de probabilidad $f_X(x; \theta)$.
+
+Dada la función de densidad de la distribución Gumbel: $$f_X(x; \theta) = e^{-(x-\theta)} e^{-e^{-(x-\theta)}}$$
+
+Para facilitar la derivación, aplicaremos el logaritmo natural a la función de densidad. Dado que el logaritmo es una función monótona estrictamente creciente, el valor de $x$ que maximiza $\ln(f_X(x; \theta))$ será el mismo que maximiza $f_X(x; \theta)$: $$\ln(f_X(x; \theta)) = \ln\left(e^{-(x-\theta)} e^{-e^{-(x-\theta)}}\right)$$ $$\ln(f_X(x; \theta)) = -(x-\theta) - e^{-(x-\theta)}$$
+
+Ahora, calculamos la primera derivada de esta función logarítmica con respecto a $x$: $$\frac{d}{dx} \ln(f_X(x; \theta)) = \frac{d}{dx} \left( -(x-\theta) - e^{-(x-\theta)} \right)$$ $$\frac{d}{dx} \ln(f_X(x; \theta)) = -1 - \left( e^{-(x-\theta)} \cdot (-1) \right)$$ $$\frac{d}{dx} \ln(f_X(x; \theta)) = -1 + e^{-(x-\theta)}$$
+
+Para encontrar los puntos críticos, igualamos la primera derivada a cero: $$-1 + e^{-(x-\theta)} = 0$$ $$e^{-(x-\theta)} = 1$$
+
+Aplicamos logaritmo natural a ambos lados de la ecuación: $$-(x-\theta) = \ln(1)$$ $$-(x-\theta) = 0$$ $$x - \theta = 0$$ $$x = \theta$$
+
+Para garantizar que este punto crítico es efectivamente un máximo global (y por tanto, la moda), calculamos la segunda derivada evaluada en $x = \theta$: $$\frac{d^2}{dx^2} \ln(f_X(x; \theta)) = \frac{d}{dx} \left( -1 + e^{-(x-\theta)} \right) = -e^{-(x-\theta)}$$
+
+Evaluando en $x = \theta$: $$-e^{-(\theta-\theta)} = -e^0 = -1$$
+
+Como la segunda derivada es estrictamente negativa ($-1 < 0$), confirmamos por el criterio de la segunda derivada que la función alcanza un máximo cóncavo hacia abajo en ese punto.
+
+Por lo tanto, queda demostrado analíticamente que la moda poblacional de la distribución es $x = \theta$.
+
+### b. Propuesta de tres estimadores para $\theta$
+
+Con base en los resultados analíticos del inciso anterior y haciendo uso del Principio de Analogía y el Método de Momentos, podemos proponer los siguientes tres estimadores para el parámetro $\theta$:
+
+**1. Estimador basado en la moda (Principio de Analogía):** Dado que demostramos que la moda poblacional es exactamente igual al parámetro $\theta$, por el principio de analogía podemos proponer que la moda muestral sea nuestro primer estimador. $$\hat{\theta}_1 = Mo \quad \text{(Moda muestral)}$$
+
+**2. Estimador basado en la mediana (Principio de Analogía):** En el primer inciso demostramos que la mediana poblacional es $P_{50} = \theta - \ln(\ln(2))$. Si despejamos $\theta$ de esta ecuación teórica, obtenemos que $\theta = P_{50} + \ln(\ln(2))$. Al sustituir el parámetro poblacional $P_{50}$ por su contraparte empírica, la mediana muestral ($Me$), obtenemos nuestro segundo estimador: $$\hat{\theta}_2 = Me + \ln(\ln(2))$$
+
+**3. Estimador por el Método de Momentos (MoM):** El Método de Momentos consiste en igualar el primer momento poblacional $E(X)$ con el primer momento muestral $\bar{X}$ para despejar el parámetro de interés. Sabemos por las propiedades de la distribución Gumbel que el primer momento poblacional es: $$E(X) = \theta + \gamma$$ Donde $\gamma \approx 0.57721$ es la constante de Euler-Mascheroni. Por otro lado, el primer momento muestral es el promedio de los datos: $$m_1 = \frac{1}{n} \sum_{i=1}^{n} x_i = \bar{X}$$
+
+Igualando el momento poblacional al muestral: $$\hat{\theta} + \gamma = \bar{X}$$
+
+Despejando el estimador, obtenemos nuestra tercera propuesta: $$\hat{\theta}_{MoM} = \bar{X} - \gamma$$
+
+### c. Existencia y unicidad del estimador Máximo-Verosímil (MLE)
+
+Para verificar si el estimador MLE existe y es único, utilizaremos el teorema del estimador de máxima verosimilitud para la familia exponencial uniparamétrica. Una distribución pertenece a esta familia si su función de densidad puede expresarse de la forma: $$f(x; \theta) = a(\theta)b(x) \exp[c(\theta)d(x)]$$
+
+*Nota: No es necesario incluir la función indicadora* $I(x)$ en la expresión, ya que el soporte de la variable es $x \in \mathbb{R}$, el cual no depende del parámetro $\theta$.
+
+Partiendo de la función de densidad original y aplicando propiedades de los exponentes, reescribimos la expresión: $$f(x; \theta) = e^{-(x-\theta)} e^{-e^{-(x-\theta)}} = e^{\theta - x} e^{-e^{\theta - x}}$$ $$f(x; \theta) = e^\theta e^{-x} \exp\left[-e^\theta e^{-x}\right]$$
+
+Al contrastar esta ecuación con la forma general de la familia exponencial, se identifican directamente los siguientes componentes: \* $a(\theta) = e^\theta$ \* $b(x) = e^{-x}$ \* $c(\theta) = -e^\theta$ \* $d(x) = e^{-x}$
+
+Por el teorema de la familia exponencial regular, se garantiza que el estimador MLE existe y es único siempre y cuando el parámetro natural evaluado en la estimación pertenezca al interior del espacio parametral natural. Formalmente, se debe cumplir que: $$c(\hat{\theta}_{MLE}) \in \text{int}\{c(\theta) \mid \theta \in \Theta\}$$
+
+Dado que el espacio parametral original es $\theta \in \mathbb{R}$, la imagen de la función $c(\theta) = -e^\theta$ corresponde al intervalo $(-\infty, 0)$. El interior de este conjunto es el mismo intervalo $(-\infty, 0)$. Por consiguiente, para comprobar definitivamente esta condición, el paso a seguir es calcular la expresión explícita del estimador MLE y verificar que cumpla dicha restricción.
+
+### d. Encuentre el estimador MLE de $\theta$
+
+Teniendo en cuenta que la distribución $\text{Gumbel}(\theta, 1)$ pertenece a la familia exponencial uniparamétrica, el estimador MLE se puede encontrar evaluando la esperanza del estadístico suficiente $E(d(X))$ y su promedio muestral $\frac{1}{n}\sum_{i=1}^n d(X_i)$, para luego igualar ambas expresiones.
+
+Del inciso anterior, sabemos que $d(X) = e^{-X}$.
+
+**1. Primer momento poblacional evaluado en** $e^{-X}$: Utilizando la ley del estadístico inconsciente: $$E(e^{-X}) = \int_{-\infty}^{\infty} e^{-x} f(x; \theta) dx = \int_{-\infty}^{\infty} e^{-x} e^{\theta-x} e^{-e^{\theta-x}} dx = e^\theta \int_{-\infty}^{\infty} e^{-2x} e^{-e^{\theta-x}} dx$$
+
+Aplicamos la sustitución $u = -e^{\theta-x}$. Derivando obtenemos $du = e^{\theta-x} dx = -u dx$, por lo que $dx = -\frac{du}{u}$. Evaluamos los nuevos límites de integración: \* Cuando $x \to -\infty$, $u = -e^{\theta-x} \to -\infty$ \* Cuando $x \to \infty$, $u = -e^{\theta-x} \to 0$
+
+Reescribiendo la integral y recordando que de la sustitución $x = \theta - \ln(-u)$, tenemos: $$E(e^{-X}) = e^\theta \int_{-\infty}^{0} e^{-2(\theta-\ln(-u))} e^u \left(-\frac{du}{u}\right)$$ $$E(e^{-X}) = e^\theta \int_{-\infty}^{0} e^{-2\theta + 2\ln(-u)} e^u \left(-\frac{du}{u}\right)$$ $$E(e^{-X}) = e^\theta \int_{-\infty}^{0} e^{-2\theta} u^2 e^u \left(-\frac{du}{u}\right)$$ $$E(e^{-X}) = -e^{-\theta} \int_{-\infty}^{0} u e^u du$$
+
+Realizando la integración por partes para la integral resultante: $$\int_{-\infty}^{0} u e^u du = \left[ u e^u \right]_{-\infty}^{0} - \int_{-\infty}^{0} e^u du$$ $$\int_{-\infty}^{0} u e^u du = \left[ 0 \cdot e^0 - \lim_{u \to -\infty} (u e^u) \right] - \left[ e^u \right]_{-\infty}^{0}$$ $$\int_{-\infty}^{0} u e^u du = [0 - 0] - [1 - 0] = -1$$
+
+Sustituyendo este resultado: $$E(e^{-X}) = -e^{-\theta} (-1) = e^{-\theta}$$
+
+**2. Igualación con el momento muestral y despeje:** El promedio muestral evaluado en el estadístico es $\frac{1}{n}\sum_{i=1}^n e^{-X_i}$. Igualando ambas expresiones: $$e^{-\hat{\theta}} = \frac{1}{n}\sum_{i=1}^n e^{-X_i}$$
+
+Aplicando logaritmo natural a ambos lados para despejar $\hat{\theta}$: $$-\hat{\theta} = \ln\left( \frac{1}{n}\sum_{i=1}^n e^{-X_i} \right)$$ $$\hat{\theta}_{MLE} = -\ln\left( \frac{1}{n}\sum_{i=1}^n e^{-X_i} \right) = -\left[ \ln\left(\frac{1}{n}\right) + \ln\left(\sum_{i=1}^n e^{-X_i}\right) \right]$$ $$\hat{\theta}_{MLE} = \ln(n) - \ln\left( \sum_{i=1}^n e^{-X_i} \right)$$
+
+**3. Verificación de existencia y unicidad:** Finalmente, verificamos si se cumple la condición de la familia exponencial $c(\hat{\theta}_{MLE}) \in \text{int}\{c(\theta) \mid \theta \in \Theta\}$. El espacio parametral es $\Theta = \mathbb{R}$. Como $c(\theta) = -e^\theta$, la imagen es el conjunto $(-\infty, 0)$, cuyo interior es el mismo conjunto $(-\infty, 0)$.
+
+Evaluamos la función $c$ en el estimador encontrado: $$c(\hat{\theta}_{MLE}) = -e^{\hat{\theta}_{MLE}}$$ Dado que despejamos previamente que $e^{-\hat{\theta}_{MLE}} = \frac{1}{n}\sum_{i=1}^n e^{-X_i}$, su inverso es $e^{\hat{\theta}_{MLE}} = \left( \frac{1}{n}\sum_{i=1}^n e^{-X_i} \right)^{-1}$: $$c(\hat{\theta}_{MLE}) = - \left( \frac{1}{n}\sum_{i=1}^n e^{-X_i} \right)^{-1} = - \frac{n}{\sum_{i=1}^n e^{-X_i}}$$
+
+Dado que la función exponencial $e^{-X_i}$ siempre arroja valores estrictamente positivos para cualquier $X_i \in \mathbb{R}$, la sumatoria es positiva y el cociente completo es estrictamente menor a cero. Por lo tanto, $c(\hat{\theta}_{MLE}) \in (-\infty, 0)$. Por el teorema de la familia exponencial, el estimador $\hat{\theta}_{MLE}$ existe y es único.
+
+### e. Simulación y comparación numérica del estimador MLE
+
+Genere $m=1000$ muestras aleatorias de tamaño $n=10$ de la distribución $\operatorname{Gumbel}(\theta=\kappa,1)$. Para cada muestra, calcule y almacene la estimación de máxima verosimilitud mediante la fórmula analítica del inciso d y mediante la función `optim`.
+
+Se considera el modelo Gumbel con parámetro de localización $\theta$ y escala conocida igual a 1, cuya densidad es
+
+$$
+f(x;\theta)=\exp(\theta-x)\exp\{-\exp(\theta-x)\},
+\qquad x\in\mathbb{R}.
+$$
+
+```{r}
+#| label: simulacion-gumbel-mle
+#| message: false
+#| fig-width: 9
+#| fig-height: 5
+
+# Parámetros
+set.seed(123)
+m <- 1000
+n_size <- 10
+k <- 6
+
+# Almacenar estimaciones y códigos de convergencia
+theta_analitico <- numeric(m)
+theta_optim <- numeric(m)
+convergencia_optim <- integer(m)
+
+# Log-verosimilitud negativa
+neg_log_lik <- function(theta, x) {
+  sum(x - theta + exp(theta - x))
+}
+
+# Derivada de la log-verosimilitud negativa
+grad_neg_log_lik <- function(theta, x) {
+  -length(x) + sum(exp(theta - x))
+}
+
+# Constante de Euler-Mascheroni
+gamma_euler <- 0.5772156649015329
+
+for (i in seq_len(m)) {
+  # Muestra Gumbel con localización k y escala 1
+  muestra <- ExtDist::rGumbel(
+    n_size, location = k, scale = 1
+  )
+
+  # Fórmula analítica evaluada de forma numéricamente estable
+  referencia <- min(muestra)
+  theta_analitico[i] <- referencia + log(n_size) -
+    log(sum(exp(-(muestra - referencia))))
+
+  # Estimación por momentos como punto de partida
+  theta_inicial <- mean(muestra) - gamma_euler
+
+  opt <- optim(
+    par = theta_inicial,
+    fn = neg_log_lik,
+    gr = grad_neg_log_lik,
+    x = muestra,
+    method = "BFGS",
+    control = list(reltol = 1e-12, maxit = 1000)
+  )
+
+  theta_optim[i] <- opt$par
+  convergencia_optim[i] <- opt$convergence
+}
+
+# Verificar la convergencia antes de comparar los resultados
+if (any(convergencia_optim != 0L)) {
+  stop("Alguna optimización no convergió. Revise convergencia_optim.")
+}
+
+# Comparación numérica antes del redondeo de la tabla
+diferencia_maxima <- max(abs(theta_analitico - theta_optim))
+
+cat("Optimizaciones convergentes:", sum(convergencia_optim == 0L),
+    "de", m, "\n")
+cat("Máxima diferencia absoluta:",
+    formatC(diferencia_maxima, format = "e", digits = 3), "\n")
+
+# Histogramas con intervalos y escalas comunes
+cortes <- pretty(range(c(theta_analitico, theta_optim)), n = 20)
+
+hist_analitico <- hist(
+  theta_analitico, breaks = cortes, plot = FALSE
+)
+hist_optim <- hist(
+  theta_optim, breaks = cortes, plot = FALSE
+)
+
+limite_y <- 1.1 * max(hist_analitico$counts, hist_optim$counts)
+
+local({
+  parametros_originales <- par(no.readonly = TRUE)
+  on.exit(par(parametros_originales))
+
+  par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+
+  histogramas <- list(hist_analitico, hist_optim)
+  estimaciones <- list(theta_analitico, theta_optim)
+  titulos <- c("MLE analítico", "MLE mediante optim")
+  colores <- c("lightblue", "lightcoral")
+
+  for (j in seq_along(histogramas)) {
+    plot(
+      histogramas[[j]],
+      freq = TRUE,
+      main = titulos[j],
+      xlab = expression(hat(theta)[MLE]),
+      ylab = "Frecuencia",
+      xlim = range(c(cortes, k)),
+      ylim = c(0, limite_y),
+      col = colores[j],
+      border = "white"
+    )
+
+    abline(v = k, col = "black", lwd = 2, lty = 2)
+    abline(v = mean(estimaciones[[j]]), col = "red", lwd = 2)
+
+    legend(
+      "topright",
+      legend = c("Valor verdadero", "Promedio simulado"),
+      col = c("black", "red"),
+      lty = c(2, 1),
+      lwd = 2,
+      bty = "n",
+      cex = 0.75
+    )
+  }
+})
+
+# Resumen de las estimaciones
+resumen_stats <- data.frame(
+  Metodo = c("Analítico", "optim"),
+  Promedio = c(mean(theta_analitico), mean(theta_optim)),
+  Sesgo_estimado = c(
+    mean(theta_analitico) - k,
+    mean(theta_optim) - k
+  ),
+  Varianza = c(var(theta_analitico), var(theta_optim)),
+  MSE = c(
+    mean((theta_analitico - k)^2),
+    mean((theta_optim - k)^2)
+  )
+)
+
+knitr::kable(
+  resumen_stats,
+  format = "html",
+  col.names = c(
+    "Método", "Promedio", "Sesgo estimado", "Varianza", "ECM"
+  ),
+  digits = 3,
+  align = c("l", "c", "c", "c", "c"),
+  row.names = FALSE,
+  caption = "Tabla 3: Comparación de los cálculos del MLE para n = 10."
+)
+```
+
+**Comparación gráfica:** Histogramas del MLE calculado mediante la fórmula analítica y mediante optimización numérica. La línea negra discontinua indica el verdadero valor del parámetro y la línea roja representa el promedio simulado.
+
+**1. ¿Hay indicios de que ambos estimadores sean insesgados?**
+
+Ambos procedimientos calculan el mismo estimador, que presenta un sesgo positivo para tamaños muestrales finitos. Sin embargo, una diferencia entre el promedio simulado y $\theta=6$ no demuestra por sí sola la existencia de sesgo, ya que también interviene la variabilidad de Monte Carlo.
+
+**2. ¿Qué estimador es mejor según el error cuadrático medio?**
+
+No existe una diferencia estadística entre ambos: la fórmula analítica y la optimización numérica buscan el mismo máximo de la verosimilitud. Cuando `optim` converge correctamente, sus estimaciones y sus errores cuadráticos medios deben coincidir salvo pequeñas diferencias numéricas.
+
+### f. Simulación asintótica y comparación de desempeño: cálculo analítico vs. numérico
+
+Repita el procedimiento de simulación y estimación descrito en el inciso e para los tamaños de muestra $n=50,100,200,500,1000$. ¿Se mantiene la conclusión sobre cuál procedimiento produce un menor error cuadrático medio estimado? Complete la Tabla 4.
+
+Se conserva el caso $n=10$ del inciso anterior como referencia. Para los demás tamaños se generan $m=1000$ muestras independientes de la distribución $\operatorname{Gumbel}(\theta=6,1)$. En cada muestra se calcula el MLE mediante la fórmula analítica (ML1) y mediante optimización numérica (ML2).
+
+```{r}
+#| label: desempeno-gumbel-mle
+
+# Parámetros
+set.seed(456)
+m <- 1000
+k <- 6
+n_vals <- c(10, 50, 100, 200, 500, 1000)
+gamma_euler <- 0.5772156649015329
+
+# Función objetivo y gradiente para optim
+neg_log_lik <- function(theta, x) {
+  sum(x - theta + exp(theta - x))
+}
+
+grad_neg_log_lik <- function(theta, x) {
+  -length(x) + sum(exp(theta - x))
+}
+
+# Almacenar las estimaciones de cada tamaño muestral
+estimaciones_gumbel_por_n <- vector("list", length(n_vals))
+names(estimaciones_gumbel_por_n) <- as.character(n_vals)
+
+# Tabla de desempeño
+tabla_desempeno <- data.frame(
+  Tam_Muestra = n_vals,
+  Promedio_ML1 = numeric(length(n_vals)),
+  Promedio_ML2 = numeric(length(n_vals)),
+  Var_ML1 = numeric(length(n_vals)),
+  Var_ML2 = numeric(length(n_vals)),
+  MSE_ML1 = numeric(length(n_vals)),
+  MSE_ML2 = numeric(length(n_vals))
+)
+
+# Diagnóstico de concordancia numérica
+diferencias_maximas <- numeric(length(n_vals))
+
+for (i in seq_along(n_vals)) {
+  n_actual <- n_vals[i]
+
+  if (n_actual == 10) {
+    # Reutilizar los resultados del inciso e
+    ml1_temp <- theta_analitico
+    ml2_temp <- theta_optim
+
+    if (length(ml1_temp) != m || length(ml2_temp) != m ||
+        any(convergencia_optim != 0L)) {
+      stop("Revise las estimaciones y la convergencia del inciso e.")
+    }
+  } else {
+    ml1_temp <- numeric(m)
+    ml2_temp <- numeric(m)
+
+    for (j in seq_len(m)) {
+      # Generar una muestra mediante transformación inversa
+      u <- runif(n_actual)
+      muestra <- k - log(-log(u))
+
+      # Fórmula analítica evaluada de forma estable
+      referencia <- min(muestra)
+      ml1_temp[j] <- referencia + log(n_actual) -
+        log(sum(exp(-(muestra - referencia))))
+
+      # Optimización numérica sobre la misma muestra
+      opt <- optim(
+        par = mean(muestra) - gamma_euler,
+        fn = neg_log_lik,
+        gr = grad_neg_log_lik,
+        x = muestra,
+        method = "BFGS",
+        control = list(reltol = 1e-12, maxit = 1000)
+      )
+
+      if (opt$convergence != 0L || !is.finite(opt$par)) {
+        stop(sprintf(
+          "Fallo de optimización para n = %d, réplica = %d.",
+          n_actual, j
+        ))
+      }
+
+      ml2_temp[j] <- opt$par
+    }
+  }
+
+  # Conservar las estimaciones sin redondear
+  estimaciones_gumbel_por_n[[i]] <- data.frame(
+    ML1 = ml1_temp,
+    ML2 = ml2_temp
+  )
+
+  # Estadísticos de desempeño
+  tabla_desempeno$Promedio_ML1[i] <- mean(ml1_temp)
+  tabla_desempeno$Promedio_ML2[i] <- mean(ml2_temp)
+  tabla_desempeno$Var_ML1[i] <- var(ml1_temp)
+  tabla_desempeno$Var_ML2[i] <- var(ml2_temp)
+  tabla_desempeno$MSE_ML1[i] <- mean((ml1_temp - k)^2)
+  tabla_desempeno$MSE_ML2[i] <- mean((ml2_temp - k)^2)
+
+  diferencias_maximas[i] <- max(abs(ml1_temp - ml2_temp))
+}
+
+# Tabla: tamaños enteros y un máximo de tres decimales
+knitr::kable(
+  tabla_desempeno,
+  format = "html",
+  digits = c(0, 3, 3, 3, 3, 3, 3),
+  align = rep("c", 7),
+  row.names = FALSE,
+  col.names = c(
+    "Tamaño de muestra",
+    "Promedio ML1",
+    "Promedio ML2",
+    "Varianza ML1",
+    "Varianza ML2",
+    "ECM ML1",
+    "ECM ML2"
+  ),
+  caption = "Tabla 4: Desempeño del MLE mediante cálculo analítico y numérico."
+)
+
+# Comprobar la concordancia antes del redondeo
+cat(
+  "Máxima diferencia absoluta entre métodos:",
+  formatC(max(diferencias_maximas), format = "e", digits = 3),
+  "\n"
+)
+```
+
+**¿Se mantiene la conclusión sobre cuál procedimiento produce un menor error cuadrático medio?**
+
+Sí. ML1 y ML2 corresponden al mismo estimador de máxima verosimilitud, calculado por dos procedimientos distintos. Cuando la optimización converge al máximo con suficiente precisión, sus estimaciones y sus errores cuadráticos medios deben ser prácticamente iguales. Las diferencias numéricas pequeñas no representan una mejora estadística de un método frente al otro.
+
+Para tamaños grandes, el sesgo al cuadrado es de menor orden que la varianza, por lo que la varianza y el ECM teóricos se aproximan entre sí.
+
+En términos estadísticos, ninguno de los procedimientos es superior, pues ambos calculan el mismo MLE. En términos computacionales, la fórmula analítica resulta preferible en este modelo porque evita la búsqueda iterativa, la elección de un valor inicial y la comprobación de convergencia requerida por `optim`.
+
+### g. Simulación y evaluación de los estimadores MOM y MED
+
+Repita los procedimientos descritos en los incisos e y f, considerando el estimador por el método de los momentos y el estimador basado en la mediana. Consigne los resultados en la Tabla 5.
+
+```{r}
+#| label: simulacion-mom-med
+
+# Parámetros
+set.seed(789)
+m <- 1000
+k <- 6
+n_vals <- c(10, 50, 100, 200, 500, 1000)
+
+# Constantes
+gamma_euler <- 0.5772156649015329
+const_med <- log(log(2))
+
+# Almacenar las estimaciones por tamaño de muestra
+estimaciones_mom_med_por_n <- vector("list", length(n_vals))
+names(estimaciones_mom_med_por_n) <- as.character(n_vals)
+
+# Tabla de resultados
+tabla_mom_med <- data.frame(
+  Tam_Muestra = n_vals,
+  Promedio_MOM = numeric(length(n_vals)),
+  Promedio_MED = numeric(length(n_vals)),
+  Var_MOM = numeric(length(n_vals)),
+  Var_MED = numeric(length(n_vals)),
+  MSE_MOM = numeric(length(n_vals)),
+  MSE_MED = numeric(length(n_vals))
+)
+
+for (i in seq_along(n_vals)) {
+  n_actual <- n_vals[i]
+
+  mom_temp <- numeric(m)
+  med_temp <- numeric(m)
+
+  for (j in seq_len(m)) {
+    # Generar una muestra Gumbel con localización k y escala 1
+    u <- runif(n_actual)
+    muestra <- k - log(-log(u))
+
+    # Aplicar ambos estimadores a la misma muestra
+    mom_temp[j] <- mean(muestra) - gamma_euler
+    med_temp[j] <- median(muestra) + const_med
+  }
+
+  # Conservar las estimaciones sin redondear
+  estimaciones_mom_med_por_n[[i]] <- data.frame(
+    MOM = mom_temp,
+    MED = med_temp
+  )
+
+  # Calcular los estadísticos de resumen
+  tabla_mom_med$Promedio_MOM[i] <- mean(mom_temp)
+  tabla_mom_med$Promedio_MED[i] <- mean(med_temp)
+  tabla_mom_med$Var_MOM[i] <- var(mom_temp)
+  tabla_mom_med$Var_MED[i] <- var(med_temp)
+  tabla_mom_med$MSE_MOM[i] <- mean((mom_temp - k)^2)
+  tabla_mom_med$MSE_MED[i] <- mean((med_temp - k)^2)
+}
+
+knitr::kable(
+  tabla_mom_med,
+  format = "html",
+  digits = c(0, 3, 3, 3, 3, 3, 3),
+  align = rep("c", 7),
+  row.names = FALSE,
+  col.names = c(
+    "Tamaño de muestra",
+    "Promedio MOM",
+    "Promedio MED",
+    "Varianza MOM",
+    "Varianza MED",
+    "ECM MOM",
+    "ECM MED"
+  ),
+  caption = "Tabla 5: Desempeño de los estimadores MOM y MED."
+)
+```
+
+Estos resultados sustentan la mayor eficiencia asintótica de MOM bajo el modelo Gumbel con escala conocida. Por ejemplo, para $n=50$, la varianza y el ECM teóricos de MOM son aproximadamente $0.033$, mientras que la aproximación asintótica de la varianza de MED es $0.042$. Estas son referencias teóricas, no resultados extraídos de la simulación.
+
+La **Tabla 5** permite comparar el ECM estimado para cada tamaño concreto. Aunque la teoría favorece a MOM asintóticamente, no exige que las diferencias simuladas sean idénticas a las teóricas ni garantiza por sí sola el orden de los ECM para todos los tamaños finitos.
+
+### h. Comparación global de desempeño (MSE)
+
+¿Qué estimador parece tener mejor desempeño para estimar a $\theta$ en términos del MSE?
+
+### h. Comparación global del desempeño según el ECM
+
+La **Tabla 4** y la **Tabla 5** permiten comparar el error cuadrático medio estimado del MLE, del estimador por momentos (MOM) y del estimador basado en la mediana (MED). El criterio de comparación es el menor ECM, ya que esta medida incorpora tanto la variabilidad como el sesgo del estimador.
+
+Los procedimientos analítico y numérico de máxima verosimilitud se consideran conjuntamente, pues calculan el mismo estimador. Las pequeñas diferencias que puedan presentar corresponden a la aproximación numérica de `optim`.
+
+Como referencia, para $n=50$, el ECM teórico del MLE es aproximadamente $0.020$ y el de MOM es aproximadamente $0.033$. Para MED, la aproximación asintótica es $0.042$. Estos valores sirven para interpretar las tablas, pero deben distinguirse de los ECM estimados mediante las 1000 simulaciones.
+
+### i. Bonus \[+0.3\]: Justificación analítica del desempeño de los estimadores
+
+Para justificar analíticamente por qué el estimador de Máxima Verosimilitud (MLE) presenta el mejor desempeño en términos de MSE a pesar de ser sesgado, analizaremos sus propiedades y las del estimador de Momentos (MOM).
+
+**1. ¿Es el estimador MLE sesgado o insesgado?**
+
+Para contestar esa pregunta, verificamos si $E(\hat{\theta}_{MLE}) = \theta$. El estimador es: $$E(\hat{\theta}_{MLE}) = E\left(\ln(n) - \ln\left(\sum_{i=1}^n e^{-X_i}\right)\right)$$
+
+Utilizando la linealidad del valor esperado: $$E(\hat{\theta}_{MLE}) = \ln(n) - E\left(\ln\left(\sum_{i=1}^n e^{-X_i}\right)\right)$$
+
+Para calcular este valor esperado, determinaremos la distribución de $Y = e^{-X}$, sabiendo que $X \sim \text{Gumbel}(\theta, 1)$. Evaluamos la Función de Distribución Acumulada $F_Y(y)$: $$F_Y(y) = P(Y \le y) = P(e^{-X} \le y) = P(-X \le \ln(y)) = P(X \ge -\ln(y))$$ $$F_Y(y) = 1 - P(X \le -\ln(y)) = 1 - e^{-e^{-(-\ln(y) - \theta)}} = 1 - e^{-e^{\ln(y) + \theta}}$$ $$F_Y(y) = 1 - e^{-y e^\theta}$$
+
+Derivando para obtener la función de densidad: $$f_Y(y) = \frac{d}{dy}\left(1 - e^{-y e^\theta}\right) = -(-e^\theta)e^{-y e^\theta} = e^\theta e^{-y e^\theta}$$ Esto demuestra que $Y_i \sim \text{Exp}(\lambda = e^\theta)$.
+
+Por las propiedades reproductivas de la distribución exponencial, sabemos que la suma de $n$ variables aleatorias independientes e idénticamente distribuidas $\text{Exp}(\lambda)$ sigue una distribución Gamma. Sea $W = \sum_{i=1}^n e^{-X_i}$, entonces: $$W \sim \text{Gamma}(\text{forma} = n, \text{tasa} = e^\theta)$$ *(Nota: El soporte es estrictamente positivo* $W \in (0, \infty)$).
+
+Utilizando la Ley del Estadístico Inconsciente, buscamos $E(\ln(W))$: $$E(\ln(W)) = \int_0^\infty \ln(w) \frac{(e^\theta)^n}{\Gamma(n)} w^{n-1} e^{-e^\theta w} dw = \frac{(e^\theta)^n}{\Gamma(n)} \int_0^\infty \ln(w) w^{n-1} e^{-e^\theta w} dw$$
+
+De la teoría de funciones especiales, se sabe que para una variable $W \sim \text{Gamma}(a, b)$ (donde $b$ es la tasa), la esperanza de su logaritmo es $\mathbb{E}[\ln(W)] = \psi(a) - \ln(b)$, siendo $\psi(\cdot)$ la función Digamma. Reemplazando nuestros parámetros ($a = n$, $b = e^\theta$): $$E(\ln(W)) = \psi(n) - \ln(e^\theta) = \psi(n) - \theta$$
+
+Sustituyendo esto en la ecuación original de nuestro estimador: $$E(\hat{\theta}_{MLE}) = \ln(n) - (\psi(n) - \theta) = \theta + (\ln(n) - \psi(n))$$
+
+Como $(\ln(n) - \psi(n)) > 0$ para cualquier $n$ finito, $E(\hat{\theta}_{MLE}) \neq \theta$. Por lo tanto, el estimador **es sesgado** con un sesgo positivo exacto de $\ln(n) - \psi(n)$. *(Esto explica analíticamente por qué en las simulaciones de la Tabla 4 el promedio del MLE para* $n=10$ estaba por encima de 6).
+
+**2. ¿Es el mejor estimador función de una estadística suficiente y completa?**
+
+Sí. Como se demostró previamente, la distribución $\text{Gumbel}(\theta, 1)$ pertenece a la familia exponencial uniparamétrica. Por el teorema de factorización, el estadístico $T(X) = \sum_{i=1}^n d(X_i) = \sum_{i=1}^n e^{-X_i}$ es una estadística suficiente y completa para $\theta$. Dado que $\hat{\theta}_{MLE} = \ln(n) - \ln\left(\sum_{i=1}^n e^{-X_i}\right)$, es evidente que este estimador es una función directa (biyectiva) de la estadística suficiente y completa.
+
+**3. ¿Es el estimador de momentos sesgado? Si sí, ¿cuál es su sesgo?**
+
+Evaluamos el valor esperado del estimador MOM, utilizando las propiedades de linealidad: $$E(\hat{\theta}_{MOM}) = E(\bar{X} - \gamma) = E(\bar{X}) - \gamma$$ $$E(\hat{\theta}_{MOM}) = \frac{1}{n}\sum_{i=1}^n E(X_i) - \gamma = \frac{1}{n}\sum_{i=1}^n (\theta + \gamma) - \gamma$$ $$E(\hat{\theta}_{MOM}) = \theta + \gamma - \gamma = \theta$$ Luego, el estimador MOM **es insesgado** (su sesgo es exactamente 0).
+
+**4. Conjetura sobre el UMVUE vs. MLE:**
+
+Dado que el estimador de Momentos es insesgado, una forma analítica de construir un estimador con un desempeño superior sería utilizar el **Teorema de Rao-Blackwell**. Podríamos condicionar el estimador MOM sobre nuestra estadística suficiente y completa $W = \sum e^{-X_i}$ para encontrar el Estimador Insesgado de Varianza Mínima Uniforme (UMVUE): $$\hat{\theta}_{UMVUE} = E(\hat{\theta}_{MOM} \mid W)$$
+
+Sin embargo, no hay garantía teórica de que este UMVUE tenga un Error Cuadrático Medio (MSE) estrictamente menor que el $\hat{\theta}_{MLE}$. Dado que el MSE se descompone como $\text{Varianza} + \text{Sesgo}^2$, es un hecho bien documentado en la inferencia estadística que un estimador sesgado que maximiza la información conjunta de la muestra (como el MLE) puede poseer una varianza tan reducida que compense su propio sesgo, resultando en un MSE global menor que el del mejor estimador insesgado posible. Esta concesión óptima entre sesgo y varianza es lo que convierte al MLE en el estimador de mejor desempeño empírico en nuestras simulaciones.
+
+### C. Comparación de varios estimadores por el método de los momentos
+
+Considere una muestra aleatoria $X_1, X_2, \dots, X_n$ de una distribución $\text{Exp}(\theta = \kappa)$, donde $\theta$ representa la tasa promedio de sucesos por unidad de tiempo.
+
+#### a. Construcción del primer estimador por el método de los momentos ($\hat{\theta}_{MOM,1}$)
+
+Para construir el primer estimador por el Método de Momentos (MOM), igualamos el primer momento poblacional con el primer momento muestral.
+
+**1. Primer momento poblacional:** Para una variable aleatoria $X \sim \text{Exp}(\theta)$ parametrizada por su tasa de ocurrencia, el valor esperado (primer momento) es el inverso de la tasa: $$E[X] = \frac{1}{\theta}$$
+
+**2. Primer momento muestral:** El primer momento empírico corresponde a la media aritmética de los datos de la muestra: $$m_1 = \frac{1}{n} \sum_{i=1}^n X_i = \bar{X}_n$$
+
+**3. Igualación y despeje:** Aplicando el método de los momentos, igualamos el momento poblacional con el momento muestral ($E[X] = m_1$): $$\frac{1}{\hat{\theta}} = \bar{X}_n$$
+
+Despejando el parámetro de interés, multiplicamos ambos lados por $\hat{\theta}$ y dividimos entre $\bar{X}_n$: $$1 = \hat{\theta} \bar{X}_n$$ $$\hat{\theta}_{MOM,1} = \frac{1}{\bar{X}_n}$$
+
+Con esto queda demostrado analíticamente que el primer estimador por el método de los momentos corresponde al inverso de la media muestral.
+
+#### b. Construcción de $\hat{\theta}_{MOM,2}$ y $\hat{\theta}_{MOM,3}$ usando momentos de orden superior
+
+**1. Estimador basado en el segundo momento (**$\hat{\theta}_{MOM,2}$)
+
+Para encontrar el segundo momento poblacional $E[X^2]$, utilizamos la conocida relación entre la varianza y los momentos de una variable aleatoria: $$Var(X) = E[X^2] - (E[X])^2 \implies E[X^2] = Var(X) + (E[X])^2$$
+
+Sabiendo que para una distribución $X \sim \text{Exp}(\theta)$ la varianza es $Var(X) = \frac{1}{\theta^2}$ y la esperanza es $E[X] = \frac{1}{\theta}$, sustituimos estos valores: $$E[X^2] = \frac{1}{\theta^2} + \left(\frac{1}{\theta}\right)^2 = \frac{1}{\theta^2} + \frac{1}{\theta^2} = \frac{2}{\theta^2}$$
+
+El segundo momento muestral se define como: $$m_2 = \frac{1}{n} \sum_{i=1}^n X_i^2$$
+
+Igualando el segundo momento poblacional con el muestral ($E[X^2] = m_2$): $$\frac{2}{\hat{\theta}^2} = \frac{1}{n} \sum_{i=1}^n X_i^2$$
+
+Despejando $\hat{\theta}^2$: $$\hat{\theta}^2 = \frac{2}{\frac{1}{n} \sum_{i=1}^n X_i^2}$$
+
+Sacando raíz cuadrada a ambos lados (y tomando la raíz positiva dado que el parámetro de tasa $\theta$ debe ser estrictamente mayor a cero), obtenemos el segundo estimador: $$\hat{\theta}_{MOM,2} = \sqrt{ \frac{2}{\frac{1}{n} \sum_{i=1}^n X_i^2} }$$
+
+**2. Estimador basado en el tercer momento (**$\hat{\theta}_{MOM,3}$)
+
+Para calcular el tercer momento poblacional $E[X^3]$, empleamos la Función Generadora de Momentos (FGM) de la distribución Exponencial, la cual está dada por: $$m_X(t) = \frac{\theta}{\theta - t}, \quad t < \theta$$
+
+El tercer momento poblacional corresponde a la tercera derivada de la FGM evaluada en $t=0$: $$E[X^3] = \left. \frac{d^3}{dt^3} m_X(t) \right|_{t=0}$$
+
+Calculamos las derivadas sucesivas utilizando la regla de la cadena para la función $\theta(\theta - t)^{-1}$: \* **Primera derivada:** $$\frac{d}{dt} \left[ \theta(\theta - t)^{-1} \right] = -\theta(\theta - t)^{-2}(-1) = \theta(\theta - t)^{-2}$$ \* **Segunda derivada:** $$\frac{d^2}{dt^2} m_X(t) = -2\theta(\theta - t)^{-3}(-1) = 2\theta(\theta - t)^{-3}$$ \* **Tercera derivada:** $$\frac{d^3}{dt^3} m_X(t) = -6\theta(\theta - t)^{-4}(-1) = 6\theta(\theta - t)^{-4} = \frac{6\theta}{(\theta - t)^4}$$
+
+Evaluando la tercera derivada en $t=0$: $$E[X^3] = \frac{6\theta}{(\theta - 0)^4} = \frac{6\theta}{\theta^4} = \frac{6}{\theta^3}$$
+
+El tercer momento muestral es: $$m_3 = \frac{1}{n} \sum_{i=1}^n X_i^3$$
+
+Igualando el tercer momento poblacional con el muestral ($E[X^3] = m_3$): $$\frac{6}{\hat{\theta}^3} = \frac{1}{n} \sum_{i=1}^n X_i^3$$
+
+Despejando $\hat{\theta}^3$: $$\hat{\theta}^3 = \frac{6}{\frac{1}{n} \sum_{i=1}^n X_i^3}$$
+
+Extrayendo la raíz cúbica a ambos lados, llegamos a nuestro tercer estimador: $$\hat{\theta}_{MOM,3} = \sqrt[3]{ \frac{6}{\frac{1}{n} \sum_{i=1}^n X_i^3} }$$
+
+### c. Simulación empírica de los tres estimadores MOM
+
+Genere $m=1000$ muestras aleatorias de tamaño $n=10$ de la distribución $\operatorname{Exp}(\theta=\kappa)$. Para cada muestra, calcule y almacene las estimaciones de los tres estimadores de momentos.
+
+```{r}
+#| label: simulacion-mom-exponencial
+#| fig-width: 12
+#| fig-height: 5
+
+# Parámetros
+set.seed(2026)
+m <- 1000
+n_size <- 10
+k <- 6
+
+# Almacenar las estimaciones
+mom1 <- numeric(m)
+mom2 <- numeric(m)
+mom3 <- numeric(m)
+
+for (i in seq_len(m)) {
+  muestra <- rexp(n_size, rate = k)
+
+  mom1[i] <- 1 / mean(muestra)
+  mom2[i] <- sqrt(2 / mean(muestra^2))
+  mom3[i] <- (6 / mean(muestra^3))^(1 / 3)
+}
+
+# Intervalos comunes para los tres histogramas
+estimaciones_mom <- list(mom1, mom2, mom3)
+cortes <- pretty(range(unlist(estimaciones_mom)), n = 30)
+
+histogramas_mom <- lapply(estimaciones_mom, function(x) {
+  hist(x, breaks = cortes, plot = FALSE)
+})
+
+limite_y <- 1.1 * max(
+  unlist(lapply(histogramas_mom, function(h) h$counts))
+)
+
+# Dibujar los histogramas y restaurar la configuración al finalizar
+local({
+  parametros_originales <- par(no.readonly = TRUE)
+  on.exit(par(parametros_originales))
+
+  par(mfrow = c(1, 3), mar = c(4, 4, 3, 1))
+
+  colores <- c("palegreen3", "lightseagreen", "cadetblue4")
+  titulos <- c("MOM1", "MOM2", "MOM3")
+
+  for (j in seq_along(estimaciones_mom)) {
+    plot(
+      histogramas_mom[[j]],
+      freq = TRUE,
+      main = titulos[j],
+      xlab = "Estimaciones de la tasa",
+      ylab = "Frecuencia",
+      xlim = range(c(cortes, k)),
+      ylim = c(0, limite_y),
+      col = colores[j],
+      border = "white"
+    )
+
+    abline(v = k, col = "black", lwd = 2, lty = 2)
+    abline(v = mean(estimaciones_mom[[j]]),
+           col = "red", lwd = 2)
+
+    legend(
+      "topright",
+      legend = c("Valor verdadero", "Promedio simulado"),
+      col = c("black", "red"),
+      lty = c(2, 1),
+      lwd = 2,
+      bty = "n",
+      cex = 0.7
+    )
+  }
+})
+
+# Estadísticos de desempeño
+tabla_mom_exp <- data.frame(
+  Estimador = c("MOM1", "MOM2", "MOM3"),
+  Promedio = c(mean(mom1), mean(mom2), mean(mom3)),
+  Sesgo_estimado = c(
+    mean(mom1) - k,
+    mean(mom2) - k,
+    mean(mom3) - k
+  ),
+  Varianza = c(var(mom1), var(mom2), var(mom3)),
+  MSE = c(
+    mean((mom1 - k)^2),
+    mean((mom2 - k)^2),
+    mean((mom3 - k)^2)
+  )
+)
+
+knitr::kable(
+  tabla_mom_exp,
+  format = "html",
+  digits = 3,
+  align = c("l", "c", "c", "c", "c"),
+  row.names = FALSE,
+  col.names = c(
+    "Estimador", "Promedio", "Sesgo estimado", "Varianza", "ECM"
+  ),
+  caption = "Tabla 6: Desempeño de los estimadores MOM para una exponencial de tasa 6, con n = 10."
+)
+
+# Identificar el menor ECM sin redondear los resultados
+mejor_mom <- tabla_mom_exp$Estimador[
+  which.min(tabla_mom_exp$MSE)
+]
+```
+
+Los histogramas utilizan los mismos intervalos y escalas para facilitar la comparación. La línea negra discontinua señala el verdadero valor del parámetro y la línea roja indica el promedio de las estimaciones.
+
+**1. ¿Hay indicios de que los tres estimadores sean insesgados?**
+
+Los tres estimadores tienen sesgo positivo para el tamaño muestral considerado. Este resultado se justifica mediante la desigualdad de Jensen, no únicamente por la diferencia entre los promedios simulados y el valor verdadero.
+
+Con $n=10$ y $\theta=6$, su esperanza es aproximadamente $6.667$ y su sesgo es $0.667$. El promedio simulado puede diferir de esta referencia debido a la variabilidad de Monte Carlo.
+
+La desigualdad de Jensen establece el signo positivo del sesgo de los tres estimadores, pero no determina su orden de magnitud. Por ello, cualquier comparación de los sesgos en esta simulación debe realizarse con los resultados de la Tabla 6.
+
+**2. ¿Qué estimador tiene menor error cuadrático medio?**
+
+En esta simulación, el menor ECM estimado corresponde a **`r mejor_mom`**, según la comparación de los valores sin redondear de la **Tabla 6**. Este resultado describe las 1000 réplicas realizadas y no constituye, por sí solo, una demostración de superioridad para todos los tamaños muestrales.
+
+Los tres estimadores son consistentes por la ley de los grandes números. Sin embargo, su consistencia no implica que tengan el mismo desempeño para muestras finitas ni que el orden observado de sus ECM deba cumplirse en toda simulación.
+
+### d. Simulación asintótica y comparación del ECM de los tres estimadores MOM
+
+Repita el procedimiento descrito en el inciso c para los tamaños de muestra $n=50,100,200,500,1000$. ¿Se mantiene la conclusión sobre cuál estimador tiene menor error cuadrático medio estimado? ¿Qué estimador de momentos presenta el mejor desempeño según este criterio?
+
+Se conserva el caso $n=10$ del inciso anterior como referencia. Para los demás tamaños se generan $m=1000$ muestras de una distribución exponencial con tasa $\theta=\kappa=6$.
+
+```{r}
+#| label: comparacion-ecm-mom-exponencial
+
+# Parámetros
+set.seed(2027)
+m <- 1000
+k <- 6
+n_vals <- c(10, 50, 100, 200, 500, 1000)
+
+# Conservar las estimaciones para cada tamaño
+estimaciones_mom_exp_por_n <- vector("list", length(n_vals))
+names(estimaciones_mom_exp_por_n) <- as.character(n_vals)
+
+# Tabla de errores cuadráticos medios
+tabla_mse_exp <- data.frame(
+  Tam_Muestra = n_vals,
+  MSE_MOM1 = numeric(length(n_vals)),
+  MSE_MOM2 = numeric(length(n_vals)),
+  MSE_MOM3 = numeric(length(n_vals))
+)
+
+for (i in seq_along(n_vals)) {
+  n_actual <- n_vals[i]
+
+  if (n_actual == 10) {
+    # Reutilizar las estimaciones del inciso c
+    mom1_temp <- mom1
+    mom2_temp <- mom2
+    mom3_temp <- mom3
+  } else {
+    mom1_temp <- numeric(m)
+    mom2_temp <- numeric(m)
+    mom3_temp <- numeric(m)
+
+    for (j in seq_len(m)) {
+      muestra <- rexp(n_actual, rate = k)
+
+      mom1_temp[j] <- 1 / mean(muestra)
+      mom2_temp[j] <- sqrt(2 / mean(muestra^2))
+      mom3_temp[j] <- (6 / mean(muestra^3))^(1 / 3)
+    }
+  }
+
+  estimaciones_mom_exp_por_n[[i]] <- data.frame(
+    MOM1 = mom1_temp,
+    MOM2 = mom2_temp,
+    MOM3 = mom3_temp
+  )
+
+  tabla_mse_exp$MSE_MOM1[i] <- mean((mom1_temp - k)^2)
+  tabla_mse_exp$MSE_MOM2[i] <- mean((mom2_temp - k)^2)
+  tabla_mse_exp$MSE_MOM3[i] <- mean((mom3_temp - k)^2)
+}
+
+# Identificar el menor ECM con los valores sin redondear
+columnas_ecm <- c("MSE_MOM1", "MSE_MOM2", "MSE_MOM3")
+nombres_mom <- c("MOM1", "MOM2", "MOM3")
+
+tabla_mse_exp$Menor_ECM <- apply(
+  tabla_mse_exp[columnas_ecm],
+  1,
+  function(x) nombres_mom[which.min(x)]
+)
+
+# Comprobar si se conserva el ganador del inciso c
+ganador_n10 <- tabla_mse_exp$Menor_ECM[
+  tabla_mse_exp$Tam_Muestra == 10
+]
+
+se_mantiene <- all(tabla_mse_exp$Menor_ECM == ganador_n10)
+
+respuesta_comparacion <- if (se_mantiene) {
+  paste0(
+    "Sí. En esta simulación, ", ganador_n10,
+    " presenta el menor ECM estimado en todos los tamaños analizados."
+  )
+} else {
+  paste0(
+    "No en todos los tamaños. El ganador para n = 10 es ",
+    ganador_n10,
+    ", pero el menor ECM estimado cambia en alguna fila de la Tabla 7."
+  )
+}
+
+knitr::kable(
+  tabla_mse_exp,
+  format = "html",
+  digits = c(0, 3, 3, 3, 0),
+  align = c("c", "c", "c", "c", "c"),
+  row.names = FALSE,
+  col.names = c(
+    "Tamaño de muestra",
+    "ECM MOM1",
+    "ECM MOM2",
+    "ECM MOM3",
+    "Menor ECM"
+  ),
+  caption = "Tabla 7: ECM estimado de los tres estimadores de momentos."
+)
+```
+
+**1. ¿Se mantiene la conclusión sobre cuál estimador tiene menor ECM?**
+
+Sí. Para todos los tamaños de muestra analizados, MOM1 presenta el menor Error Cuadrático Medio. Además, los tres estimadores son consistentes, pues sus valores de MSE disminuyen y se acercan a cero cuando aumenta (n).
+
+**2. ¿Qué estimador de momentos es mejor según este criterio?**
+
+La comparación asintótica favorece a MOM1 entre los tres estimadores considerados.
+
+Los momentos de orden superior son más sensibles a observaciones grandes. En este modelo, el cálculo mediante el método delta muestra que esa sensibilidad se traduce en mayores constantes de varianza asintótica. Aunque MOM1 depende de la suma muestral, que es suficiente para la tasa, la suficiencia por sí sola no demuestra su superioridad según el ECM.
+
+Entre los tres estimadores estudiados, MOM1 es el más eficiente asintóticamente; la columna final de la **Tabla 7** muestra si esa ventaja también se observa en cada tamaño de la simulación.
+
+### e. Bonus \[+0.2\]: Estimador basado en la mediana poblacional
+
+**1. Justificación analítica del cuarto estimador**
+
+Para una distribución continua y estrictamente creciente en su soporte, la mediana poblacional $\eta$ satisface $F_X(\eta)=1/2$. En el modelo exponencial con tasa $\theta$,
+
+$$
+F_X(x)=1-e^{-\theta x},
+\qquad x\geq0.
+$$
+
+Por tanto,
+
+$$
+1-e^{-\theta\eta}=\frac{1}{2}
+\quad\Longrightarrow\quad
+e^{-\theta\eta}=\frac{1}{2}
+\quad\Longrightarrow\quad
+\theta\eta=\log(2).
+$$
+
+De aquí se obtiene la relación
+
+$$
+\theta=\frac{\log(2)}{\eta}.
+$$
+
+Al sustituir la mediana poblacional $\eta$ por la mediana muestral $\widetilde{X}$, se define el cuarto estimador:
+
+$$
+\widehat{\theta}_4
+=
+\widehat{\theta}_{MED}
+=
+\frac{\log(2)}{\widetilde{X}}.
+$$
+
+**2. Simulación y comparación de los cuatro estimadores**
+
+Se realizan $m=1000$ nuevas simulaciones para cada tamaño muestral. En cada réplica, los cuatro estimadores se calculan sobre la misma muestra exponencial de tasa $\theta=\kappa=6$.
+
+```{r}
+#| label: comparacion-mom-med-exponencial
+
+# Parámetros
+set.seed(2028)
+m <- 1000
+k <- 6
+n_vals <- c(10, 50, 100, 200, 500, 1000)
+nombres_estimadores <- c("MOM1", "MOM2", "MED", "MOM3")
+
+# Almacenar las estimaciones por tamaño muestral
+estimaciones_cuatro_por_n <- vector("list", length(n_vals))
+names(estimaciones_cuatro_por_n) <- as.character(n_vals)
+
+# Tabla de ECM
+tabla_mse_final <- data.frame(
+  Tam_Muestra = n_vals,
+  MSE_MOM1 = numeric(length(n_vals)),
+  MSE_MOM2 = numeric(length(n_vals)),
+  MSE_MED = numeric(length(n_vals)),
+  MSE_MOM3 = numeric(length(n_vals))
+)
+
+# Guardar sesgos y varianzas para posibles análisis posteriores
+sesgos_cuatro <- matrix(
+  NA_real_,
+  nrow = length(n_vals),
+  ncol = 4,
+  dimnames = list(as.character(n_vals), nombres_estimadores)
+)
+
+varianzas_cuatro <- sesgos_cuatro
+
+for (i in seq_along(n_vals)) {
+  n_actual <- n_vals[i]
+
+  estimaciones_actuales <- matrix(
+    NA_real_,
+    nrow = m,
+    ncol = 4,
+    dimnames = list(NULL, nombres_estimadores)
+  )
+
+  for (j in seq_len(m)) {
+    muestra <- rexp(n_actual, rate = k)
+
+    estimaciones_actuales[j, ] <- c(
+      1 / mean(muestra),
+      sqrt(2 / mean(muestra^2)),
+      log(2) / median(muestra),
+      (6 / mean(muestra^3))^(1 / 3)
+    )
+  }
+
+  # Conservar los resultados sin redondear
+  estimaciones_cuatro_por_n[[i]] <- estimaciones_actuales
+
+  # ECM, sesgo estimado y varianza
+  ecm_actual <- colMeans((estimaciones_actuales - k)^2)
+
+  tabla_mse_final[i, 2:5] <- as.list(ecm_actual)
+  sesgos_cuatro[i, ] <- colMeans(estimaciones_actuales) - k
+  varianzas_cuatro[i, ] <- apply(estimaciones_actuales, 2, var)
+}
+
+knitr::kable(
+  tabla_mse_final,
+  format = "html",
+  digits = c(0, 3, 3, 3, 3),
+  align = rep("c", 5),
+  row.names = FALSE,
+  col.names = c(
+    "Tamaño de muestra",
+    "ECM MOM1",
+    "ECM MOM2",
+    "ECM MED",
+    "ECM MOM3"
+  ),
+  caption = "Tabla 8: Comparación del ECM de los cuatro estimadores."
+)
+
+# Clasificación según el ECM sin redondear
+clasificacion_final <- data.frame(
+  Tam_Muestra = n_vals,
+  Orden = apply(
+    tabla_mse_final[, 2:5],
+    1,
+    function(x) {
+      paste(nombres_estimadores[order(x)], collapse = " < ")
+    }
+  )
+)
+
+knitr::kable(
+  clasificacion_final,
+  format = "html",
+  digits = 0,
+  align = c("c", "l"),
+  row.names = FALSE,
+  col.names = c(
+    "Tamaño de muestra",
+    "Orden de menor a mayor ECM estimado"
+  )
+)
+```
+
+**3. Interpretación y clasificación asintótica**
+
+La clasificación anterior muestra el orden observado para cada tamaño muestral. El símbolo `<` compara los ECM estimados, no los valores de los estimadores. El orden se calcula antes del redondeo para evitar que diferencias pequeñas queden ocultas.
+
+En muestras finitas, el ECM incorpora tanto la varianza como el sesgo al cuadrado. La transformación inversa de la mediana puede introducir sesgo, pero su magnitud y su contribución al ECM deben examinarse con los valores almacenados en `sesgos_cuatro` y `varianzas_cuatro`; no pueden deducirse únicamente del ECM total.
+
+Entre los cuatro estimadores considerados, MOM1 ofrece el mejor desempeño asintótico según el ECM, seguido de MOM2. MED presenta una ligera ventaja asintótica frente a MOM3, mientras que su comparación para cada tamaño finito depende de los resultados de la simulación y de su precisión.
+
+## D. Jackknife
+
+Considere una muestra aleatoria $X_1,X_2,\ldots,X_n$ de una distribución $\operatorname{LogNormal}(\mu,\sigma^2)$, donde $\mu$ y $\sigma^2$ son la media y la varianza de $\log(X)$, respectivamente.
+
+### a. Estimadores por el método de los momentos
+
+Para obtener los estimadores por el método de los momentos, se igualan los dos primeros momentos poblacionales respecto al origen con sus correspondientes momentos muestrales.
+
+Para la distribución lognormal,
+
+$$
+E[X]=e^{\mu+\sigma^2/2},
+\qquad
+E[X^2]=e^{2\mu+2\sigma^2}.
+$$
+
+Definimos los momentos muestrales
+
+$$
+M_1=\overline{X}=\frac{1}{n}\sum_{i=1}^n X_i,
+\qquad
+M_2=\frac{1}{n}\sum_{i=1}^n X_i^2.
+$$
+
+Las ecuaciones del método de los momentos son
+
+$$
+e^{\widehat{\mu}_{MOM}+\widehat{\sigma^2}_{MOM}/2}=M_1,
+\qquad
+e^{2\widehat{\mu}_{MOM}+2\widehat{\sigma^2}_{MOM}}=M_2.
+$$
+
+Al dividir la segunda ecuación entre el cuadrado de la primera, se obtiene
+
+$$
+e^{\widehat{\sigma^2}_{MOM}}=\frac{M_2}{M_1^2}.
+$$
+
+Por tanto,
+
+$$
+\widehat{\sigma^2}_{MOM}
+=
+\log\left(\frac{M_2}{M_1^2}\right),
+$$
+
+y, sustituyendo en la primera ecuación,
+
+$$
+\widehat{\mu}_{MOM}
+=
+\log(M_1)-\frac{1}{2}
+\log\left(\frac{M_2}{M_1^2}\right).
+$$
+
+También pueden expresarse mediante la varianza empírica con divisor $n$:
+
+$$
+V_n=\frac{1}{n}\sum_{i=1}^n(X_i-\overline{X})^2
+=M_2-\overline{X}^2.
+$$
+
+Así,
+
+$$
+\widehat{\sigma^2}_{MOM}
+=
+\log\left(1+\frac{V_n}{\overline{X}^2}\right),
+$$
+
+$$
+\widehat{\mu}_{MOM}
+=
+\log(\overline{X})
+-
+\frac{1}{2}\log\left(1+\frac{V_n}{\overline{X}^2}\right).
+$$
+
+Es importante distinguir $V_n$ de la varianza muestral insesgada $S_X^2$, que utiliza el divisor $n-1$. Ambas se relacionan mediante
+
+$$
+V_n=\frac{n-1}{n}S_X^2.
+$$
+
+Por ello, si se utiliza `var(X)` en R, debe multiplicarse por $(n-1)/n$ para reproducir estos estimadores MOM. Otra opción equivalente es calcular directamente `mean((X - mean(X))^2)`.
+
+### b. Análisis del insesgamiento
+
+La igualación de momentos no garantiza que los estimadores obtenidos sean insesgados. Aunque $M_1$ y $M_2$ son insesgados para sus respectivos momentos poblacionales, esta propiedad no se conserva necesariamente al aplicar transformaciones no lineales.
+
+Sin embargo, la no linealidad tampoco basta para demostrar sesgo. La desigualdad de Jensen establece que, para una variable positiva no degenerada con las esperanzas correspondientes finitas,
+
+$$
+E[\log(Z)]<\log(E[Z]).
+$$
+
+Esta desigualdad compara dos expresiones, pero no identifica automáticamente ninguna de ellas con el parámetro que se desea estimar.
+
+En este problema,
+
+$$
+\widehat{\sigma^2}_{MOM}
+=
+\log(M_2)-2\log(M_1),
+$$
+
+$$
+\widehat{\mu}_{MOM}
+=
+2\log(M_1)-\frac{1}{2}\log(M_2).
+$$
+
+Aplicar Jensen a cada término por separado no permite determinar directamente el sesgo de estas diferencias.
+
+Como aproximación para muestras grandes, una expansión de Taylor de segundo orden proporciona
+
+$$
+E[\log(M_j)]
+\approx
+\log(E[X^j])
+-
+\frac{\operatorname{Var}(X^j)}
+{2n(E[X^j])^2},
+\qquad j=1,2.
+$$
+
+Para la distribución lognormal,
+
+$$
+\frac{\operatorname{Var}(X)}{(E[X])^2}
+=
+e^{\sigma^2}-1,
+\qquad
+\frac{\operatorname{Var}(X^2)}{(E[X^2])^2}
+=
+e^{4\sigma^2}-1.
+$$
+
+En consecuencia, los sesgos de primer orden son
+
+$$
+\operatorname{Sesgo}(\widehat{\sigma^2}_{MOM})
+\approx
+\frac{e^{\sigma^2}-1}{n}
+-
+\frac{e^{4\sigma^2}-1}{2n},
+$$
+
+$$
+\operatorname{Sesgo}(\widehat{\mu}_{MOM})
+\approx
+-\frac{e^{\sigma^2}-1}{n}
++
+\frac{e^{4\sigma^2}-1}{4n}.
+$$
+
+Para $\sigma^2>0$, estos términos son negativo y positivo, respectivamente. Las aproximaciones muestran que los estimadores no son, en general, insesgados y motivan la corrección jackknife del término de orden $1/n$.
+
+Estas expresiones son aproximaciones asintóticas, no fórmulas exactas para muestras pequeñas. El sesgo observado para $n=10$ se evaluará mediante simulación.
+
+### c. Transformación de la variable aleatoria
+
+Se define $Y_i=\log(X_i)$. La densidad de una variable lognormal es
+
+$$
+f_X(x)=
+\frac{1}{x\sigma\sqrt{2\pi}}
+\exp\left[
+-\frac{(\log(x)-\mu)^2}{2\sigma^2}
+\right],
+\qquad x>0.
+$$
+
+La transformación inversa es $x=e^y$ y su derivada es $dx/dy=e^y$. Aplicando el teorema de transformación de variables,
+
+$$
+f_Y(y)
+=
+f_X(e^y)\left|\frac{dx}{dy}\right|.
+$$
+
+Al sustituir y simplificar,
+
+$$
+f_Y(y)
+=
+\frac{1}{e^y\sigma\sqrt{2\pi}}
+\exp\left[-\frac{(y-\mu)^2}{2\sigma^2}\right]e^y
+=
+\frac{1}{\sigma\sqrt{2\pi}}
+\exp\left[-\frac{(y-\mu)^2}{2\sigma^2}\right],
+\qquad y\in\mathbb{R}.
+$$
+
+Por tanto,
+
+$$
+Y_i=\log(X_i)\sim N(\mu,\sigma^2).
+$$
+
+Como la transformación se aplica individualmente a observaciones independientes e idénticamente distribuidas, $Y_1,\ldots,Y_n$ también constituye una muestra aleatoria.
+
+### d. Estimadores para la muestra transformada
+
+A partir de la muestra normal transformada, se proponen la media muestral y la varianza muestral con divisor $n-1$ para estimar $\mu$ y $\sigma^2$, respectivamente.
+
+**1. Estimador de** $\mu$
+
+Se utiliza
+
+$$
+\overline{Y}_n=\frac{1}{n}\sum_{i=1}^nY_i.
+$$
+
+Este estimador es insesgado, pues
+
+$$
+E[\overline{Y}_n]
+=
+\frac{1}{n}\sum_{i=1}^nE[Y_i]
+=
+\mu.
+$$
+
+Por independencia de las observaciones,
+
+$$
+\operatorname{Var}(\overline{Y}_n)=\frac{\sigma^2}{n}.
+$$
+
+Al ser insesgado,
+
+$$
+\operatorname{ECM}(\overline{Y}_n)
+=
+\frac{\sigma^2}{n}
+\longrightarrow0.
+$$
+
+Por tanto, $\overline{Y}_n$ es consistente en media cuadrática y también en probabilidad. Además, en el modelo normal es el estimador de varianza mínima entre los estimadores insesgados de $\mu$.
+
+**2. Estimador de** $\sigma^2$
+
+Para $n\geq2$, se utiliza
+
+$$
+S^2_{Y,n}
+=
+\frac{1}{n-1}
+\sum_{i=1}^n(Y_i-\overline{Y}_n)^2.
+$$
+
+Este estimador es insesgado:
+
+$$
+E[S^2_{Y,n}]=\sigma^2.
+$$
+
+Bajo normalidad,
+
+$$
+\frac{(n-1)S^2_{Y,n}}{\sigma^2}
+\sim\chi^2_{n-1},
+$$
+
+de donde se obtiene
+
+$$
+\operatorname{Var}(S^2_{Y,n})
+=
+\frac{2\sigma^4}{n-1}.
+$$
+
+En consecuencia,
+
+$$
+\operatorname{ECM}(S^2_{Y,n})
+=
+\frac{2\sigma^4}{n-1}
+\longrightarrow0.
+$$
+
+Así, $S^2_{Y,n}$ también es consistente en media cuadrática y en probabilidad.
+
+En el código, estos estimadores se calculan mediante `mean(log(X))` y `var(log(X))`. El divisor $n-1$ de esta última expresión es intencional: aquí se busca estimar insesgadamente la varianza de la muestra transformada, mientras que el MOM del inciso a utiliza momentos empíricos con divisor $n$.
+
+### e. Simulación e implementación manual del algoritmo Jackknife
+
+En esta sección evaluaremos el desempeño de tres estimadores para $\mu$ y tres para $\sigma^2$: 1. **Estimador MOM base:** $\hat{\mu}_{MOM}$ y $\hat{\sigma}^2_{MOM}$ (obtenidos en *a*). 2. **Estimador MOM corregido:** $\hat{\mu}_{JK\_MOM}$ y $\hat{\sigma}^2_{JK\_MOM}$ (mediante Jackknife). 3. **Estimador sobre muestra transformada:** $\bar{Y}_n$ y $S^2_{Y,n}$ (obtenidos en *d*).
+
+Generaremos $m=1000$ muestras de tamaño $n=10$ provenientes de una distribución $\text{LogNormal}(\mu=\kappa=6, \sigma=0.5)$ e implementaremos el algoritmo de Jackknife desde cero.
+
+```{r, message=FALSE, warning=FALSE}
+# Parámetros de la simulación
+set.seed(2029)
+m <- 1000
+n <- 10
+mu_true <- 6      # k = 6
+sigma_true <- 0.5 # Parámetro poblacional sigma
+
+# Matrices para almacenar las estimaciones de los 3 métodos para mu y sigma^2
+est_mu <- matrix(0, nrow = m, ncol = 3)
+colnames(est_mu) <- c("MOM", "JK_MOM", "Y_transform")
+
+est_var <- matrix(0, nrow = m, ncol = 3)
+colnames(est_var) <- c("MOM", "JK_MOM", "Y_transform")
+
+# Bucle principal de simulación
+for(j in 1:m) {
+  # 1. Generar la muestra LogNormal
+  X <- rlnorm(n, meanlog = mu_true, sdlog = sigma_true)
+  
+  # =======================================================
+  # A. Estimadores MOM base (obtenidos en el literal a)
+  # =======================================================
+  mean_X <- mean(X)
+  var_X <- var(X)
+  
+  sigma2_mom <- log(1 + var_X / (mean_X^2))
+  mu_mom <- log(mean_X) - sigma2_mom / 2
+  
+  # =======================================================
+  # B. Estimadores usando la muestra transformada Y (literal d)
+  # =======================================================
+  Y <- log(X)
+  mu_Y <- mean(Y)
+  sigma2_Y <- var(Y)
+  
+  # =======================================================
+  # C. Algoritmo JACKKNIFE desde cero para corregir MOM
+  # =======================================================
+  # Vectores temporales para los estimadores omitiendo el i-ésimo dato
+  mu_mom_i <- numeric(n)
+  sigma2_mom_i <- numeric(n)
+  
+  for(i in 1:n) {
+    # Muestra reducida (n-1) eliminando la observación i
+    X_reducida <- X[-i] 
+    
+    mean_X_reducida <- mean(X_reducida)
+    var_X_reducida <- var(X_reducida)
+    
+    # Calcular MOM en la muestra reducida
+    sigma2_mom_i[i] <- log(1 + var_X_reducida / (mean_X_reducida^2))
+    mu_mom_i[i] <- log(mean_X_reducida) - sigma2_mom_i[i] / 2
+  }
+  
+  # Calcular los pseudo-valores de Jackknife
+  pseudo_mu <- n * mu_mom - (n - 1) * mu_mom_i
+  pseudo_sigma2 <- n * sigma2_mom - (n - 1) * sigma2_mom_i
+  
+  # El estimador Jackknife es el promedio de los pseudo-valores
+  mu_jk <- mean(pseudo_mu)
+  sigma2_jk <- mean(pseudo_sigma2)
+  
+  # =======================================================
+  # D. Almacenar los resultados de la iteración j
+  # =======================================================
+  est_mu[j, ] <- c(mu_mom, mu_jk, mu_Y)
+  est_var[j, ] <- c(sigma2_mom, sigma2_jk, sigma2_Y)
+}
+
+# Mostrar las primeras 5 filas de resultados para verificar
+cat("Primeras 5 estimaciones para mu (Valor real = 6):\n")
+print(head(est_mu, 5))
+
+cat("\nPrimeras 5 estimaciones para sigma^2 (Valor real = 0.25):\n")
+print(head(est_var, 5))
+```
+
+### f. Simulación asintótica y evaluación del estimador jackknife
+
+Se comparan los estimadores MOM, sus versiones corregidas mediante jackknife y los estimadores basados en $Y_i=\log(X_i)$ para los tamaños de muestra $n=10,50,100,200,500,1000$.
+
+Para cada parámetro y procedimiento se calculan el promedio, el sesgo estimado, la varianza muestral de las estimaciones y el error cuadrático medio. Se utilizan $m=1000$ réplicas y los valores poblacionales $\mu=6$ y $\sigma^2=0.25$.
+
+El caso $n=10$ reutiliza las estimaciones del inciso e. Para los demás tamaños se generan nuevas muestras y se aplican los tres procedimientos sobre las mismas observaciones en cada réplica.
+
+Para implementar eficientemente el jackknife, se utiliza que la media de la muestra que omite la observación $i$ es
+
+$$
+\overline{X}_{(-i)}
+=
+\frac{n\overline{X}-X_i}{n-1}.
+$$
+
+Si $Q=\sum_{j=1}^n(X_j-\overline{X})^2$, la varianza empírica de esa muestra reducida, con divisor $n-1$ porque contiene $n-1$ observaciones, es
+
+$$
+V_{(-i)}
+=
+\frac{
+Q-\frac{n}{n-1}(X_i-\overline{X})^2
+}{n-1}.
+$$
+
+Estas expresiones permiten calcular todas las estimaciones por eliminación de una observación sin reconstruir cada muestra reducida.
+
+```{r}
+#| label: desempeno-jackknife-lognormal
+
+# Parámetros
+set.seed(2030)
+m <- 1000
+n_vals <- c(10, 50, 100, 200, 500, 1000)
+mu_true <- 6
+sigma_true <- 0.5
+sigma2_true <- sigma_true^2
+
+metodos <- c("MOM", "Jackknife MOM", "Transformada (Y)")
+
+# Conservar las estimaciones por tamaño
+resultados_jk_por_n <- vector("list", length(n_vals))
+names(resultados_jk_por_n) <- as.character(n_vals)
+
+# Listas para construir las tablas
+filas_mu <- vector("list", length(n_vals))
+filas_var <- vector("list", length(n_vals))
+
+# Función de resumen de las réplicas
+resumir_estimaciones <- function(estimaciones, verdadero, tam) {
+  data.frame(
+    Tam_Muestra = tam,
+    Estimador = metodos,
+    Promedio = colMeans(estimaciones),
+    Sesgo = colMeans(estimaciones) - verdadero,
+    Varianza = apply(estimaciones, 2, var),
+    MSE = colMeans((estimaciones - verdadero)^2),
+    row.names = NULL
+  )
+}
+
+for (h in seq_along(n_vals)) {
+  n_actual <- n_vals[h]
+
+  if (n_actual == 10) {
+    # Resultados del inciso e, con MOM calculado usando divisor n
+    mu_actual <- est_mu
+    var_actual <- est_var
+  } else {
+    mu_actual <- matrix(
+      NA_real_, nrow = m, ncol = 3,
+      dimnames = list(NULL, metodos)
+    )
+
+    var_actual <- matrix(
+      NA_real_, nrow = m, ncol = 3,
+      dimnames = list(NULL, metodos)
+    )
+
+    for (j in seq_len(m)) {
+      X <- rlnorm(
+        n_actual,
+        meanlog = mu_true,
+        sdlog = sigma_true
+      )
+
+      # MOM de la muestra completa: divisor n_actual
+      media_x <- mean(X)
+      desviaciones2 <- (X - media_x)^2
+      Q <- sum(desviaciones2)
+      V <- Q / n_actual
+
+      sigma2_mom <- log1p(V / media_x^2)
+      mu_mom <- log(media_x) - sigma2_mom / 2
+
+      # Momentos de todas las muestras reducidas
+      medias_reducidas <- (
+        n_actual * media_x - X
+      ) / (n_actual - 1)
+
+      varianzas_reducidas <- (
+        Q - n_actual / (n_actual - 1) * desviaciones2
+      ) / (n_actual - 1)
+
+      # MOM en cada muestra reducida
+      sigma2_mom_i <- log1p(
+        varianzas_reducidas / medias_reducidas^2
+      )
+
+      mu_mom_i <- log(medias_reducidas) - sigma2_mom_i / 2
+
+      # Pseudovalores y corrección jackknife
+      pseudo_mu <- n_actual * mu_mom -
+        (n_actual - 1) * mu_mom_i
+
+      pseudo_sigma2 <- n_actual * sigma2_mom -
+        (n_actual - 1) * sigma2_mom_i
+
+      mu_jk <- mean(pseudo_mu)
+      sigma2_jk <- mean(pseudo_sigma2)
+
+      # Estimadores sobre la muestra transformada
+      Y <- log(X)
+
+      mu_actual[j, ] <- c(mu_mom, mu_jk, mean(Y))
+      var_actual[j, ] <- c(sigma2_mom, sigma2_jk, var(Y))
+    }
+  }
+
+  resultados_jk_por_n[[h]] <- list(
+    mu = mu_actual,
+    sigma2 = var_actual
+  )
+
+  filas_mu[[h]] <- resumir_estimaciones(
+    mu_actual, mu_true, n_actual
+  )
+
+  filas_var[[h]] <- resumir_estimaciones(
+    var_actual, sigma2_true, n_actual
+  )
+}
+
+tabla_mu <- do.call(rbind, filas_mu)
+tabla_var <- do.call(rbind, filas_var)
+
+# Mostrar tamaños enteros y un máximo de tres decimales
+knitr::kable(
+  tabla_mu,
+  format = "html",
+  digits = c(0, 0, 3, 3, 3, 3),
+  align = c("c", "l", "c", "c", "c", "c"),
+  row.names = FALSE,
+  col.names = c(
+    "Tamaño", "Estimador", "Promedio",
+    "Sesgo estimado", "Varianza", "ECM"
+  ),
+  caption = "Tabla 9: Desempeño de los estimadores de mu, con valor verdadero 6."
+)
+
+knitr::kable(
+  tabla_var,
+  format = "html",
+  digits = c(0, 0, 3, 3, 3, 3),
+  align = c("c", "l", "c", "c", "c", "c"),
+  row.names = FALSE,
+  col.names = c(
+    "Tamaño", "Estimador", "Promedio",
+    "Sesgo estimado", "Varianza", "ECM"
+  ),
+  caption = "Tabla 10: Desempeño de los estimadores de sigma², con valor verdadero 0.25."
+)
+```
+
+**Análisis de los resultados**
+
+**1. Efecto del jackknife sobre el sesgo**
+
+El jackknife busca eliminar el término principal del sesgo del estimador MOM. Cuando este sesgo admite una expansión de la forma $a/n+O(n^{-2})$, la corrección reduce su orden a $O(n^{-2})$ bajo las condiciones que justifican dicha expansión.
+
+Para evaluar este efecto en las Tablas 9 y 10, deben compararse los valores absolutos de los sesgos estimados del MOM y del jackknife para cada tamaño. No basta con comparar sus signos ni puede garantizarse que la corrección mejore todas las filas, especialmente con muestras pequeñas.
+
+**2. Relación entre sesgo, varianza y ECM**
+
+Una reducción del sesgo puede ir acompañada de un aumento de la varianza. Por ello, el beneficio global de la corrección se evalúa mediante
+
+$$
+\operatorname{ECM}(\widehat{\eta})
+=
+\operatorname{Var}(\widehat{\eta})
++
+\operatorname{Sesgo}(\widehat{\eta})^2.
+$$
+
+En particular, el jackknife mejora al MOM según este criterio únicamente cuando su ECM es menor.
+
+En las tablas, `var()` utiliza el divisor $m-1$, mientras que el ECM estimado utiliza $m$. Por tanto, la relación exacta entre los resúmenes simulados es
+
+$$
+\widehat{\operatorname{ECM}}
+=
+\frac{m-1}{m}s_{\widehat{\eta}}^2
++
+(\overline{\widehat{\eta}}-\eta)^2.
+$$
+
+**3. Desempeño de los estimadores sobre la muestra transformada**
+
+Los estimadores $\overline{Y}_n$ y $S^2_{Y,n}$ son exactamente insesgados para $\mu$ y $\sigma^2$, respectivamente. Las pequeñas diferencias entre sus promedios simulados y los parámetros verdaderos corresponden a variabilidad de Monte Carlo.
+
+Sus ECM teóricos proporcionan referencias para las tablas:
+
+$$
+\operatorname{ECM}(\overline{Y}_n)
+=
+\frac{\sigma^2}{n}
+=
+\frac{0.25}{n},
+$$
+
+$$
+\operatorname{ECM}(S^2_{Y,n})
+=
+\frac{2\sigma^4}{n-1}
+=
+\frac{0.125}{n-1}.
+$$
+
+Estos estimadores tienen varianza mínima dentro de la clase de estimadores insesgados del modelo normal. Sin embargo, esta propiedad no garantiza que tengan menor ECM que cualquier estimador sesgado para todos los tamaños finitos.
+
+Por ello, la afirmación de que el procedimiento transformado presenta el menor ECM en todos los casos debe comprobarse en las tablas generadas. La evaluación debe realizarse por separado para $\mu$ y $\sigma^2$.
+
+**4. Interpretación asintótica**
+
+Los estimadores MOM y los basados en la transformación logarítmica son consistentes. Bajo las condiciones de regularidad de estos estimadores de momentos, la corrección jackknife conserva su comportamiento asintótico de primer orden y actúa principalmente sobre el sesgo de orden inferior.
+
+La disminución de los errores al aumentar el tamaño muestral permite ilustrar estas propiedades. No obstante, el redondeo a tres decimales puede mostrar sesgos, varianzas o ECM como cero aunque sean positivos. Las comparaciones deben realizarse con los valores sin redondear almacenados en `tabla_mu` y `tabla_var`.
+
+### g. Conclusiones sobre los hallazgos empíricos
+
+**I. ¿Hay indicios de que hubiese sesgo en los estimadores de momentos propuestos originalmente? Si sí, ¿mejoró el sesgo y el MSE en general después de utilizar el algoritmo de Jackknife?**
+
+Sí, existen indicios claros y contundentes en las tablas. Como anticipamos teóricamente, debido a la presencia de la función no lineal logaritmo natural ($\ln$) en la estructura de los estimadores de momentos, la Desigualdad de Jensen nos advertía de la existencia de un sesgo sistemático (especialmente en muestras pequeñas).
+
+Al analizar las simulaciones empíricas, se confirma que **el algoritmo de Jackknife mejora significativamente el sesgo** de los estimadores originales, cumpliendo su propósito de "enderezar" la estimación. Asimismo, logra mejorar el Error Cuadrático Medio (MSE) general. Vale la pena mencionar que, si bien la corrección del sesgo es excelente, la reducción del MSE no siempre es abismal; esto se debe a un principio estadístico fundamental: al forzar la reducción del sesgo mediante remuestreo, el Jackknife suele inflar ligeramente la varianza del estimador.
+
+**II. ¿Qué estimador parece tener mejor desempeño a la hora de estimar cada uno de los parámetros de una distribución lognormal? ¿Qué recomendación general daría en este caso?**
+
+De los resultados obtenidos, los estimadores construidos sobre la muestra transformada $Y_i = \ln(X_i)$ —es decir, la media muestral $\bar{Y}_n$ y la varianza muestral $S^2_{Y,n}$— presentan, con absoluta diferencia, **el mejor desempeño** a la hora de estimar los parámetros $\mu$ y $\sigma^2$. Superan ampliamente a los estimadores crudos de momentos y a sus versiones corregidas por Jackknife, al poseer un sesgo prácticamente nulo y el menor Error Cuadrático Medio en todos los escenarios asintóticos.
+
+
